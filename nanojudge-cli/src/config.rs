@@ -13,6 +13,7 @@ pub struct NanojudgeConfig {
     pub model: Option<String>,
     pub rounds: Option<usize>,
     pub concurrency: Option<usize>,
+    pub prompt_template: Option<String>,
 }
 
 const DEFAULT_CONFIG_TEMPLATE: &str = "\
@@ -32,6 +33,11 @@ const DEFAULT_CONFIG_TEMPLATE: &str = "\
 
 # Max concurrent LLM requests
 # concurrency = 32
+
+# Path to a custom prompt template file.
+# The template must contain these variables: $criterion, $option1, $option2, $length
+# If not set, the built-in default prompt is used.
+# prompt_template = \"/path/to/my-prompt.txt\"
 ";
 
 /// Returns the default config path: ~/.config/nanojudge/config.toml

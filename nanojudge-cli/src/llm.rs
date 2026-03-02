@@ -134,6 +134,7 @@ async fn send_comparison_request(
 pub async fn compare_pair(
     client: &Client,
     config: &LlmConfig,
+    template: &str,
     criterion: &str,
     item1_name: &str,
     item2_name: &str,
@@ -144,7 +145,7 @@ pub async fn compare_pair(
     max_retries: usize,
     verbose: bool,
 ) -> Result<ComparisonResult, String> {
-    let prompt = build_prompt(criterion, item1_name, item2_name, analysis_length);
+    let prompt = build_prompt(template, criterion, item1_name, item2_name, analysis_length);
 
     let mut last_err = String::new();
     for attempt in 0..=max_retries {

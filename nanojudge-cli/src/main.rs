@@ -118,6 +118,11 @@ struct RankArgs {
     /// Max retries per comparison on HTTP errors. Default: 3. Set to 0 to disable.
     #[arg(long)]
     retries: Option<usize>,
+
+    /// Path to a custom prompt template file.
+    /// The template must contain: $criterion, $option1, $option2, $length
+    #[arg(long)]
+    prompt_template: Option<PathBuf>,
 }
 
 /// Load items from all sources: --items file, --item inline args, or stdin.
@@ -224,6 +229,16 @@ async fn run_rank(args: RankArgs) {
         });
     let concurrency = args.concurrency.or(cfg.concurrency).unwrap_or(32);
 
+    // Load prompt template: CLI arg > config file > built-in default
+    let prompt_template = {
+        let template_path = args.prompt_template.clone()
+            .or_else(|| cfg.prompt_template.map(PathBuf::from));
+        match template_path {
+            Some(path) => prompt::load_template(&path),
+            None => prompt::DEFAULT_TEMPLATE.to_string(),
+        }
+    };
+
     let narrow_win = args.narrow_win.unwrap_or(parse::DEFAULT_NARROW_WIN);
     if narrow_win <= 0.5 || narrow_win >= 1.0 {
         bail("--narrow-win must be greater than 0.5 and less than 1.0");
@@ -246,6 +261,8 @@ async fn run_rank(args: RankArgs) {
         api_key,
         temperature,
     });
+
+    let prompt_template = Arc::new(prompt_template);
 
     let client = Client::new();
     let names = Arc::new(items.clone());
@@ -341,6 +358,7 @@ async fn run_rank(args: RankArgs) {
             let names = names.clone();
             let criterion = args.criterion.clone();
             let analysis_length = analysis_length.clone();
+            let template = prompt_template.clone();
             let id_a = *id_a;
             let id_b = *id_b;
 
@@ -350,6 +368,7 @@ async fn run_rank(args: RankArgs) {
                 compare_pair(
                     &client,
                     &llm_config,
+                    &template,
                     &criterion,
                     &names[id_a as usize],
                     &names[id_b as usize],
