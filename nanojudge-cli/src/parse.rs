@@ -131,17 +131,35 @@ fn extract_likert_probabilities(logprobs: &[LogprobContent], mapping: &[f64; 5])
 
 /// Fallback: extract rating letter from the last few lines of response text.
 ///
-/// Looks for lines like "A: Option 1 clearly wins" near the end.
+/// Looks for patterns like "A: Option 1 clearly wins" or "Verdict: A: ..." near the end.
 /// Returns the likert index (0-4) if found.
 fn parse_rating_from_text(text: &str) -> Option<usize> {
     let lines: Vec<&str> = text.trim().lines().collect();
     let start = lines.len().saturating_sub(5);
     for line in lines[start..].iter().rev() {
         let trimmed = line.trim();
+
+        // Try "X: ..." at start of line
         let chars: Vec<char> = trimmed.chars().take(2).collect();
         if chars.len() >= 2 && chars[1] == ':' {
             if let Some(idx) = letter_to_index(chars[0]) {
                 return Some(idx);
+            }
+        }
+
+        // Try "Verdict: X" or "Verdict: X:" pattern on the same line
+        let lower = trimmed.to_lowercase();
+        if let Some(pos) = lower.find("verdict") {
+            let after_verdict = &trimmed[pos + 7..];
+            // Skip colon, spaces, etc. after "verdict"
+            for ch in after_verdict.chars() {
+                if ch == ':' || ch == ' ' || ch == '\t' {
+                    continue;
+                }
+                if let Some(idx) = letter_to_index(ch) {
+                    return Some(idx);
+                }
+                break; // first non-whitespace/colon char wasn't A-E
             }
         }
     }
@@ -196,6 +214,17 @@ mod tests {
 
         let text = "No verdict here at all.";
         assert_eq!(parse_rating_from_text(text), None);
+
+        // "Verdict: X:" on the same line
+        let text = "Some analysis.\n\nVerdict: A: Option 1 clearly wins";
+        assert_eq!(parse_rating_from_text(text), Some(0));
+
+        let text = "Some analysis.\n\nVerdict: E: Option 2 clearly wins";
+        assert_eq!(parse_rating_from_text(text), Some(4));
+
+        // "verdict:" lowercase
+        let text = "Analysis paragraph.\n\nverdict: B: Option 1 narrowly wins";
+        assert_eq!(parse_rating_from_text(text), Some(1));
     }
 
     #[test]

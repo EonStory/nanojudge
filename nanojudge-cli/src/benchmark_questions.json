@@ -1,0 +1,602 @@
+[
+  {
+    "question": "Which approach to addressing global wealth inequality is likely to have the fewest unintended negative consequences over a century-long horizon?",
+    "target_length": "5-10 paragraphs",
+    "item1": "universal basic income (UBI) funded by automation taxes",
+    "item2": "global wealth taxes on assets over a certain threshold"
+  },
+  {
+    "question": "Which is more essential for a healthy long-term romantic relationship?",
+    "target_length": "3-6 sentences",
+    "item1": "complete radical honesty about every thought",
+    "item2": "maintaining separate hobbies and identities"
+  },
+  {
+    "question": "I’m 30 and I realized I have no life skills because my parents did everything for me. I can’t cook, I don’t know how to change a tire, and I’ve never done my own taxes. I feel like a child. Which area of 'adulting' should I master first to build self-confidence?",
+    "target_length": "4-8 paragraphs",
+    "item1": "basic home cooking and meal planning",
+    "item2": "financial literacy and personal budgeting"
+  },
+  {
+    "question": "I'm a 'recovering' social media addict. I've deleted the apps, but I still reflexively reach for my phone every few minutes. I need a 'bridge' activity—something I can do on my phone that feels productive or educational rather than brain-rotting. Which is best for rewiring the brain?",
+    "target_length": "2-3 paragraphs",
+    "item1": "learning a language on Duolingo",
+    "item2": "reading long-form journalism via an RSS reader"
+  },
+  {
+    "question": "My partner and I have been together for ten years. We love each other, but we’ve fallen into a 'co-existing' rut where we just watch TV every night. We need a shared activity that forces us to communicate and work as a team again. Which would be the most effective 'relationship reset'?",
+    "target_length": "3-5 paragraphs",
+    "item1": "learning a partner sport like tennis or pickleball",
+    "item2": "taking a formal ballroom dance course"
+  },
+  {
+    "question": "I've been in the same city for 10 years and my social circle has become an echo chamber. I want to move somewhere that forces me to interact with people who have vastly different life experiences and worldviews. However, I'm an artist who needs a low cost of living to survive.\n\nI'm looking for a 'mid-sized' move. I don't want a global megacity, but I also can't do a rural isolated cabin. I need a place with enough friction to be interesting but enough community to be safe.\n\nWhich type of environment fosters genuine connection across social and economic divides while remaining affordable for a creative professional?",
+    "target_length": "4-8 paragraphs",
+    "item1": "a declining industrial 'Rust Belt' city",
+    "item2": "a college town in a deep red state"
+  },
+  {
+    "question": "I want to get better at handling uncertainty in my personal life. I feel like I need a philosophy that accepts chaos rather than trying to control it. Which school of thought is more practical for everyday resilience?",
+    "target_length": "3-5 paragraphs",
+    "item1": "Stoicism",
+    "item2": "Taoism"
+  },
+  {
+    "question": "Which is more likely to lead to a long-term sustainable lifestyle change for someone who is currently very sedentary?",
+    "target_length": "3-5 paragraphs",
+    "item1": "buying a treadmill and using it while watching TV",
+    "item2": "getting a high-energy dog that requires daily walks"
+  },
+  {
+    "question": "I'm a senior software engineer looking to start a side project. I want to use a language that will actually make me a better programmer overall, rather than just one that is easy to ship with. Which ecosystem provides the most 'enlightenment' regarding memory safety and concurrency?",
+    "target_length": "2-3 paragraphs",
+    "item1": "Rust",
+    "item2": "Go"
+  },
+  {
+    "question": "Which is more rewarding: being a generalist who knows a little about everything, or a specialist who is an expert in one narrow field?",
+    "target_length": "2-3 paragraphs",
+    "item1": "the versatility of the generalist",
+    "item2": "the depth and authority of the specialist"
+  },
+  {
+    "question": "I have severe ADHD and struggle with the 'executive function' requirement of most hobbies. I need something that provides immediate dopamine hits, has low barrier to entry for each session, but offers a deep 'rabbit hole' of mastery. Which is most likely to keep me engaged without becoming another abandoned project?",
+    "target_length": "4-8 paragraphs",
+    "item1": "miniature painting (Warhammer, etc.)",
+    "item2": "lockpicking and physical security puzzles"
+  },
+  {
+    "question": "I've been stuck in a creative rut for months. I feel like everything I produce is derivative and soul-less. Which method is most effective for shattering your established patterns and forcing a new perspective?",
+    "target_length": "3-5 paragraphs",
+    "item1": "traveling to a country where you don't speak the language or know the customs",
+    "item2": "taking an intensive course in a completely unrelated medium (e.g., a dancer taking pottery)"
+  },
+  {
+    "question": "I have $5,000 saved specifically for a 'life-changing' experience. I’ve worked three jobs to save this. I want something that will fundamentally alter my perspective on the world. Which is the best investment?",
+    "target_length": "4-8 paragraphs",
+    "item1": "a solo backpacking trip through a continent you've never visited",
+    "item2": "attending an intensive, multi-week silent meditation retreat"
+  },
+  {
+    "question": "I just bought my first home—a fixer-upper—and I'm overwhelmed by what I don't know. If I can only afford the time to master one skill set this year, which 'homeowner' knowledge base will save me the most money and prevent the most disasters over the next decade?",
+    "target_length": "2-3 paragraphs",
+    "item1": "basic plumbing and leak prevention",
+    "item2": "electrical safety and small repairs"
+  },
+  {
+    "question": "I need to get better at handling rejection. Which 'trial by fire' would be the most effective (and survivable) way to desensitize myself?",
+    "target_length": "3-5 paragraphs",
+    "item1": "cold calling for a local charity fundraiser",
+    "item2": "trying to get into high-end clubs with a strict door policy"
+  },
+  {
+    "question": "I’m 30 and I’ve realized I have no 'roots.' I’ve moved every two years since I was a kid. I want to build a sense of legacy or permanence. Which project feels most like building a 'foundation' for a life?",
+    "target_length": "4-8 paragraphs",
+    "item1": "buying and restoring a 'forever' home",
+    "item2": "planting an orchard or long-lived trees"
+  },
+  {
+    "question": "I’m an introvert who wants to improve my social confidence without the 'cringe' of traditional networking events. I need a context where interaction is natural and low-pressure. Which community is best for this?",
+    "target_length": "3-5 paragraphs",
+    "item1": "Tabletop RPG (D&D) groups",
+    "item2": "local community choir or music ensemble"
+  },
+  {
+    "question": "Which interior design style is most likely to look 'dated' in 10 years?",
+    "target_length": "1-2 paragraphs",
+    "item1": "minimalist beige and Scandi",
+    "item2": "industrial chic with exposed brick"
+  },
+  {
+    "question": "For a city planner trying to revitalize a post-industrial downtown area with a limited budget, which 'tactical urbanism' intervention provides the best ROI for community engagement?",
+    "target_length": "3-5 paragraphs",
+    "item1": "creating pop-up parklets in parking spaces",
+    "item2": "commissioning large-scale public murals"
+  },
+  {
+    "question": "I want to teach my teenager about the value of 'deep work' in a world of TikTok attention spans. Which skill requires the most sustained, undistracted focus before the first 'win' happens?",
+    "target_length": "3-5 paragraphs",
+    "item1": "learning to play classical guitar",
+    "item2": "mastering the art of chess"
+  },
+  {
+    "question": "I want to become a better 'active listener' for my friends and partner. I tend to jump in with advice or make it about my own experiences. Which practice is more effective for training the brain to stay present and receptive without the urge to intervene?",
+    "target_length": "3-5 paragraphs",
+    "item1": "volunteering for a crisis or peer-support hotline",
+    "item2": "studying and practicing the techniques of oral history interviewing"
+  },
+  {
+    "question": "I work 50 hours a week and live in a small apartment. I really want a pet for companionship. Which would be most ethical and manageable?",
+    "target_length": "3-6 sentences",
+    "item1": "an adult/senior cat",
+    "item2": "a low-energy small dog (like a Pug or Frenchie)"
+  },
+  {
+    "question": "I'm looking for a way to express myself creatively, but I have zero natural talent for drawing or music. I want something with a clear technical path where 'good' is measurable, rather than purely subjective. Which is most rewarding for a logical, systematic thinker?",
+    "target_length": "2-3 paragraphs",
+    "item1": "architectural photography",
+    "item2": "generative art via coding"
+  },
+  {
+    "question": "I’ve inherited $100,000 from a distant relative. I'm 30 years old, have a stable job, and no debt other than a small car loan. I want this money to change the trajectory of my life, but I'm torn between long-term security and short-term enrichment. Which use of these funds provides the highest 'return on life' over the next four decades?",
+    "target_length": "4-8 paragraphs",
+    "item1": "putting a down payment on a modest home",
+    "item2": "investing the full amount into a low-cost index fund"
+  },
+  {
+    "question": "Which provides a more accurate 'pulse check' of a city's actual culture versus its marketed image for tourists?",
+    "target_length": "1-2 paragraphs",
+    "item1": "spending a Tuesday afternoon at a central public library",
+    "item2": "riding the entire length of a major commuter bus line"
+  },
+  {
+    "question": "Which is more likely to ruin a friendship?",
+    "target_length": "1-2 paragraphs",
+    "item1": "going into business together",
+    "item2": "traveling together for more than a month"
+  },
+  {
+    "question": "If an individual consumer wants to make the most statistically significant impact on reducing plastic waste, which behavior change is actually the most effective given the current state of global waste management infrastructure?",
+    "target_length": "2-3 paragraphs",
+    "item1": "switching to zero-waste grocery stores and bulk bins",
+    "item2": "drastically reducing the purchase of new synthetic clothing"
+  },
+  {
+    "question": "Which of these common household 'eco-friendly' swaps actually has the highest measurable impact on an individual's carbon footprint?",
+    "target_length": "3-5 paragraphs",
+    "item1": "switching from plastic to glass storage",
+    "item2": "composting all organic food waste"
+  },
+  {
+    "question": "Which of these traits is most likely to be a 'silent killer' of a startup's culture as it grows from 10 to 100 people?",
+    "target_length": "2-3 paragraphs",
+    "item1": "hiring for 'culture fit' over 'culture add'",
+    "item2": "lack of formal documentation and 'tribal knowledge'"
+  },
+  {
+    "question": "I've been a vegetarian for a decade but I'm considering reintroducing meat for health reasons (iron deficiency). I feel a lot of guilt and identity loss. Which approach to reintroduction is most psychologically manageable?",
+    "target_length": "4-8 paragraphs",
+    "item1": "starting with sustainably sourced shellfish or bivalves",
+    "item2": "buying from local, regenerative small-scale farms"
+  },
+  {
+    "question": "Which of these home 'upgrades' is most likely to lead to an actual increase in daily happiness rather than just temporary satisfaction?",
+    "target_length": "2-3 paragraphs",
+    "item1": "investing in a professional-grade kitchen for home cooking",
+    "item2": "soundproofing the bedroom for better sleep quality"
+  },
+  {
+    "question": "I've spent my whole life being 'the smart one' and now I'm terrified of looking stupid. I want to learn something where being a beginner is celebrated and expected. Which community is most welcoming to 'dumb' questions?",
+    "target_length": "3-5 paragraphs",
+    "item1": "local maker spaces",
+    "item2": "beginner adult ballet classes"
+  },
+  {
+    "question": "I'm a survivor of a natural disaster and I'm struggling with 'survivor's guilt.' My therapist recommended finding an outlet that focuses on restoration and life. Which would be the most healing for someone feeling disconnected from the world's beauty?",
+    "target_length": "5-10 paragraphs",
+    "item1": "beekeeping and pollinator gardening",
+    "item2": "joining a community choir"
+  },
+  {
+    "question": "I’m 50, my kids are grown, and I realize I’ve spent my whole life making other people happy. I have no idea what *I* like. Which hobby is most likely to act as a 'gateway' to discovering a late-life passion?",
+    "target_length": "5-10 paragraphs",
+    "item1": "pottery and ceramics",
+    "item2": "restoring vintage furniture"
+  },
+  {
+    "question": "I'm 65 and just retired. I'm healthy, financially stable, but I feel like I've lost my purpose. I want to do something that gives back to the next generation, but I don't want to be 'the old guy in the room' who's just ignored. Which role allows for the most genuine connection with younger people?",
+    "target_length": "5-10 paragraphs",
+    "item1": "mentoring at-risk youth or foster kids",
+    "item2": "teaching a practical skill at a community college"
+  },
+  {
+    "question": "I have $5,000 to invest in my personal growth this year. I want to become a better thinker and more effective communicator. I don't care about certificates; I care about actual brain-rewiring. Which is the best use of this budget?",
+    "target_length": "4-8 paragraphs",
+    "item1": "intensive 1-on-1 logic and philosophy tutoring",
+    "item2": "attending a series of high-end immersive writing retreats"
+  },
+  {
+    "question": "I'm looking for a hobby that will improve my hand-eye coordination and spatial reasoning. I'm a bit clumsy and want to work on my fine motor skills. Which of these offers the best 'training' for someone starting from zero?",
+    "target_length": "3-6 sentences",
+    "item1": "learning to juggle",
+    "item2": "building intricate scale models"
+  },
+  {
+    "question": "I made a high-profile mistake at work that became a bit of a meme internally. I'm mortified and feel like my reputation is permanently stained. How should I handle the 'rebranding' of myself within the company?",
+    "target_length": "4-8 paragraphs",
+    "item1": "leaning into it and being the first to laugh at yourself",
+    "item2": "staying quiet, working twice as hard, and letting time erase the memory"
+  },
+  {
+    "question": "I'm an introvert who finds large parties draining, but I still want a social life. Which type of gathering is most 'introvert-friendly' while still allowing for meaningful social interaction?",
+    "target_length": "2-3 paragraphs",
+    "item1": "a board game night with a small group",
+    "item2": "a structured 'interest' club (like a book club or film society)"
+  },
+  {
+    "question": "Which of these home renovation projects adds the most functional value to a daily routine versus just increasing the resale value?",
+    "target_length": "2-3 paragraphs",
+    "item1": "building a dedicated, soundproofed home office",
+    "item2": "installing a high-end chef's kitchen"
+  },
+  {
+    "question": "Which is a more effective way to reduce your personal carbon footprint without making massive lifestyle sacrifices?",
+    "target_length": "2-3 paragraphs",
+    "item1": "switching to a fully plant-based diet",
+    "item2": "eliminating all air travel for leisure"
+  },
+  {
+    "question": "Which has a more welcoming community for someone who is socially anxious but wants to make friends?",
+    "target_length": "3-5 paragraphs",
+    "item1": "tabletop role-playing games (like D&D)",
+    "item2": "recreational running clubs"
+  },
+  {
+    "question": "Which is the more iconic 'New York City' sound?",
+    "target_length": "1-2 paragraphs",
+    "item1": "the distant, rhythmic screech of the subway on a curve",
+    "item2": "a chorus of car horns in a midtown traffic jam"
+  },
+  {
+    "question": "I’ve been stuck in a massive reading slump for two years. Every time I pick up a book, my brain feels itchy and I reach for my phone. I want to rebuild my attention span. Which approach is more effective for 're-training' a brain addicted to short-form digital content?",
+    "target_length": "3-6 sentences",
+    "item1": "re-reading childhood favorites or very fast-paced thrillers",
+    "item2": "committing to 15 minutes of poetry or short essays daily"
+  },
+  {
+    "question": "Which is more satisfying to master for the average person?",
+    "target_length": "1-2 paragraphs",
+    "item1": "parallel parking in a tight spot on the first try",
+    "item2": "cooking a perfect medium-rare steak"
+  },
+  {
+    "question": "I want to pick up a hobby that keeps my brain sharp as I age. I'm torn between learning a musical instrument or learning a difficult foreign language. Which provides more neuroplastic benefits and wards off cognitive decline more effectively?",
+    "target_length": "3-5 paragraphs",
+    "item1": "learning a complex instrument like piano or violin",
+    "item2": "learning a non-Western language (e.g., Mandarin, Arabic)"
+  },
+  {
+    "question": "I'm a recovering alcoholic looking for social outlets that don't revolve around drinking. I've found that many adult social groups—from book clubs to kickball leagues—eventually end up at a bar. I need a community where 'not drinking' is the default or at least completely unremarkable, and where the activity itself provides the dopamine hit I'm looking for.\n\nWhich hobby community is safest for someone in early sobriety who still wants a robust social life?",
+    "target_length": "4-8 paragraphs",
+    "item1": "CrossFit or specialized HIIT gyms",
+    "item2": "the board gaming and tabletop community"
+  },
+  {
+    "question": "If you had to choose one sense to be enhanced to a superhuman level, which would be the most 'cursed' or problematic in daily life?",
+    "target_length": "3-6 sentences",
+    "item1": "super-acute hearing (hearing through walls, miles away)",
+    "item2": "super-sensitive smell (detecting every pheromone and molecule)"
+  },
+  {
+    "question": "Which of these is most likely to be seen as a 'red flag' in a first date's apartment that they think is actually a 'flex'?",
+    "target_length": "1-2 paragraphs",
+    "item1": "a floor-to-ceiling collection of pristine, unread classic literature",
+    "item2": "an overly elaborate, professional-grade home gym in the living room"
+  },
+  {
+    "question": "I have a very demanding job and a long commute. I find that when I get home, I'm too tired to do anything but scroll on my phone, which makes me feel worse. I need an 'active rest' activity that is low-stakes but high-reward and doesn't require looking at a screen.\n\nWhich is most effective at lowering cortisol and helping someone transition from 'work mode' to 'home mode'?",
+    "target_length": "2-3 paragraphs",
+    "item1": "listening to audiobooks while coloring",
+    "item2": "a 20-minute daily yoga flow"
+  },
+  {
+    "question": "I'm drowning in tasks and feel like I'm constantly 'busy' but never 'productive.' I need a system for my brain that doesn't feel like a second job. Which philosophy of time management is more sustainable for someone who hates rigid schedules?",
+    "target_length": "3-5 paragraphs",
+    "item1": "Getting Things Done (GTD)",
+    "item2": "Time Blocking/Calendar Auditing"
+  },
+  {
+    "question": "I'm a highly competitive person by nature, but it's started to ruin my enjoyment of games and sports. I want a hobby where there is no 'winning' or 'losing,' only personal progression. Which is best for a 'recovering' perfectionist?",
+    "target_length": "5-10 paragraphs",
+    "item1": "pottery and ceramics",
+    "item2": "long-distance running (training for personal bests)"
+  },
+  {
+    "question": "I’m 40 and have realized I have no close friends, only work colleagues. I’m incredibly lonely but also socially anxious. Which path offers a 'scaffolded' way to build genuine connection without the pressure of immediate deep intimacy?",
+    "target_length": "4-8 paragraphs",
+    "item1": "joining a local choir or community theater group",
+    "item2": "taking a recurring language class at a local college"
+  },
+  {
+    "question": "Which scientific mystery, if solved, would most fundamentally change our understanding of our place in the universe?",
+    "target_length": "3-5 paragraphs",
+    "item1": "the nature of dark matter and dark energy",
+    "item2": "the origin of life (abiogenesis)"
+  },
+  {
+    "question": "Our city is facing a housing crisis. Which policy intervention is 'riskier' in terms of unintended consequences but has a higher potential for a permanent solution?",
+    "target_length": "4-8 paragraphs",
+    "item1": "implementing strict rent control across all units",
+    "item2": "eliminating all single-family zoning and parking requirements"
+  },
+  {
+    "question": "Which architectural intervention has a higher impact on reducing the 'heat island' effect in densely populated, low-income urban neighborhoods?",
+    "target_length": "3-5 paragraphs",
+    "item1": "widespread installation of cool/reflective roofs",
+    "item2": "strategic expansion of the urban tree canopy"
+  },
+  {
+    "question": "I'm moving to a tiny studio apartment (250 sq ft). I love to cook, but I have almost no counter space. Which single kitchen appliance is the most 'worthy' of taking up space?",
+    "target_length": "3-6 sentences",
+    "item1": "a high-end multi-cooker (Instant Pot/Air Fryer combo)",
+    "item2": "a professional-grade stand mixer"
+  },
+  {
+    "question": "I've recently retired from a high-pressure executive role and I'm struggling with the loss of status and daily structure. I feel like my identity was tied entirely to my business card. Which path offers a more grounded way to rebuild a sense of self in this new chapter?",
+    "target_length": "4-8 paragraphs",
+    "item1": "starting a small, low-stakes consultancy",
+    "item2": "committing to a rigorous physical discipline like marathon training"
+  },
+  {
+    "question": "I'm a writer struggling with a massive second-act slump. My plot has ground to a halt. Which technique is better for getting the momentum back?",
+    "target_length": "2-3 paragraphs",
+    "item1": "writing 'the worst possible thing' that could happen to your character next",
+    "item2": "stepping away from the draft and writing a series of 'flashbacks' for the protagonist"
+  },
+  {
+    "question": "Which interior design philosophy tends to age the most gracefully and feel 'classic' rather than 'dated' over a twenty-year horizon?",
+    "target_length": "2-3 paragraphs",
+    "item1": "mid-century modern with authentic vintage pieces",
+    "item2": "minimalist Scandinavian with a focus on light and wood"
+  },
+  {
+    "question": "Our hiring algorithm shows disparate impact across demographic groups. We need to mitigate bias without compromising the model's predictive power for job performance. Which approach is most robust?",
+    "target_length": "3-5 paragraphs",
+    "item1": "preprocessing data to remove sensitive attribute correlations",
+    "item2": "in-processing by adding a fairness constraint to the objective function"
+  },
+  {
+    "question": "I want to learn how to 'think' better. I've been told to study formal logic, but others say I should study cognitive biases. Which provides a more practical toolkit for everyday decision-making?",
+    "target_length": "4-8 paragraphs",
+    "item1": "formal Aristotelian or symbolic logic",
+    "item2": "behavioral economics and cognitive bias research"
+  },
+  {
+    "question": "I have ADHD and I struggle to finish anything I start. I get hyper-focused for a week and then never touch the project again. Which hobby is most 'forgiving' to an inconsistent schedule while still providing a sense of progress?",
+    "target_length": "4-8 paragraphs",
+    "item1": "modular synthesizer building",
+    "item2": "restoring vintage furniture"
+  },
+  {
+    "question": "I'm 22 and just starting my first real job. I want to build a 'capsule wardrobe' that looks professional but doesn't make me look like I'm playing dress-up in my dad's clothes. Where should I put most of my budget?",
+    "target_length": "3-6 sentences",
+    "item1": "a high-quality tailored blazer",
+    "item2": "expensive, well-made leather shoes"
+  },
+  {
+    "question": "I'm a survivor of a natural disaster and I've developed significant 'checking' compulsions. I want to engage in a hobby that requires me to accept a lack of total control. Which would be the most therapeutic way to practice 'letting go'?",
+    "target_length": "3-5 paragraphs",
+    "item1": "watercolor painting (wet-on-wet technique)",
+    "item2": "sailing in open water"
+  },
+  {
+    "question": "I'm trying to decide on a second language to learn. I want something that will be most useful for 'adventure' travel over the next twenty years. I'm less interested in business utility and more interested in getting off the beaten path. Which gives me the most access to 'hidden' parts of the world?",
+    "target_length": "3-5 paragraphs",
+    "item1": "Spanish (Central and South America)",
+    "item2": "French (West and North Africa)"
+  },
+  {
+    "question": "I'm an artist who has been working digitally for a decade, and I feel like I've lost the 'soul' of my work. I want to return to physical media, but I'm intimidated by the mess and the lack of an 'undo' button. Which medium is the best 'bridge' for someone transitioning from digital to analog?",
+    "target_length": "3-5 paragraphs",
+    "item1": "gouache painting (fast-drying and matte)",
+    "item2": "linocut or relief printmaking"
+  },
+  {
+    "question": "I’m looking to improve my critical thinking skills and ability to spot logical fallacies in everyday life. Which pursuit offers the most rigorous training for the mind?",
+    "target_length": "3-5 paragraphs",
+    "item1": "studying formal logic and philosophy",
+    "item2": "joining a competitive debate club"
+  },
+  {
+    "question": "Our corporate culture is stagnating and employees feel disconnected. We have a small budget for a recurring team-building effort. Which would actually build genuine rapport rather than just being 'forced fun'?",
+    "target_length": "3-5 paragraphs",
+    "item1": "monthly 'skill-share' lunch and learns",
+    "item2": "collaborative charity/pro-bono projects during work hours"
+  },
+  {
+    "question": "Which is the more effective way to reduce the stigma surrounding mental health in a corporate environment?",
+    "target_length": "1-2 paragraphs",
+    "item1": "leadership publicly sharing their own mental health journeys",
+    "item2": "providing generous, 'no-questions-asked' mental health days"
+  },
+  {
+    "question": "If we were to send a single physical object into deep space to represent the 'soul' of humanity—not just our data, but our essence—which would be more evocative for a hypothetical observer?",
+    "target_length": "5-10 paragraphs",
+    "item1": "a high-fidelity recording of a symphony orchestra",
+    "item2": "a curated collection of global poetry and literature"
+  },
+  {
+    "question": "Which architectural style is most often criticized by modern residents for being 'inhumane' or 'cold,' yet remains a favorite among academic architects for its honesty and structural integrity?",
+    "target_length": "1-2 paragraphs",
+    "item1": "Brutalism",
+    "item2": "International Style (Modernism)"
+  },
+  {
+    "question": "I have 'tech fatigue.' I spend 10 hours a day in front of a screen for work. I want a hobby that is completely analog, tactile, and perhaps a bit messy. I want to feel 'human' again. Which is most grounding?",
+    "target_length": "4-8 paragraphs",
+    "item1": "oil painting on canvas",
+    "item2": "black-and-white film photography and darkroom developing"
+  },
+  {
+    "question": "Which is the 'purest' form of creative expression—the one where the distance between the thought and the medium is the shortest?",
+    "target_length": "2-3 paragraphs",
+    "item1": "poetry",
+    "item2": "improvised jazz"
+  },
+  {
+    "question": "Which would be the most difficult 'survival' situation to endure for a month?",
+    "target_length": "1-2 paragraphs",
+    "item1": "stranded in a snowy wilderness with basic gear",
+    "item2": "stuck on a desert island with no fresh water source"
+  },
+  {
+    "question": "Which iconic typeface is the most 'overused' in modern branding to the point of losing its original prestige?",
+    "target_length": "3-6 sentences",
+    "item1": "Helvetica",
+    "item2": "Futura"
+  },
+  {
+    "question": "I want to become a more 'critical' consumer of news and media to avoid falling for misinformation or rage-bait. Which skill-set is more foundational for a regular person to develop?",
+    "target_length": "2-3 paragraphs",
+    "item1": "learning the basics of formal logic and common fallacies",
+    "item2": "understanding the business models and incentives of major media outlets"
+  },
+  {
+    "question": "My father passed away recently and left me his massive, disorganized workshop. It's full of tools and projects he never finished. I feel overwhelmed every time I step inside, but I don't want to sell everything off. Which approach would be best for honoring his memory while managing my own grief and lack of technical skill?",
+    "target_length": "5-10 paragraphs",
+    "item1": "cataloging everything and selling what I don't understand",
+    "item2": "committing to finishing one single project of his"
+  },
+  {
+    "question": "Which of these contributes more to a city's 'walkability' and sense of place?",
+    "target_length": "1-2 paragraphs",
+    "item1": "the density of mixed-use zoning (shops under apartments)",
+    "item2": "the width and quality of the sidewalks"
+  },
+  {
+    "question": "I am an adult survivor of a high-control religious environment. I am struggling with the fact that I don’t know how to make choices for myself without feeling intense guilt or looking for a 'leader' to follow. Which avenue is better for rebuilding a sense of self-agency?",
+    "target_length": "5-10 paragraphs",
+    "item1": "secular therapy specifically focused on Religious Trauma Syndrome (RTS)",
+    "item2": "engaging in solo travel to a place where no one knows your background"
+  },
+  {
+    "question": "I’m a 'relapsed' creative. I used to paint and write as a kid, but 20 years of office work has killed my imagination. I feel 'blocked' and embarrassed. Which approach is best for a 'gentle' creative homecoming?",
+    "target_length": "5-10 paragraphs",
+    "item1": "following 'The Artist's Way' morning pages",
+    "item2": "taking an 'ugly art' class where the goal is to be bad"
+  },
+  {
+    "question": "I have severe ADHD and struggle with hobbies that have a slow 'payoff.' I need something that provides immediate dopamine hits but also builds a skill over time. Which is better for a brain that needs constant stimulation?",
+    "target_length": "4-8 paragraphs",
+    "item1": "fast-paced rhythm gaming",
+    "item2": "improvisational theater or comedy"
+  },
+  {
+    "question": "I'm looking to buy a 'forever home' and I'm torn between different priorities. Which feature adds the most long-term value to a person's mental health and sense of peace?",
+    "target_length": "3-5 paragraphs",
+    "item1": "ample natural light and large windows",
+    "item2": "high-quality soundproofing from neighbors and traffic"
+  },
+  {
+    "question": "Our urban planning committee is debating how to revitalize the downtown core to increase foot traffic and social cohesion. Which intervention historically provides the most sustainable 'anchor' for community life?",
+    "target_length": "4-8 paragraphs",
+    "item1": "developing a centralized public park with programmed events",
+    "item2": "incentivizing a high-density mixed-use residential development"
+  },
+  {
+    "question": "We are obsessed with 'grit' and 'resilience' in children. How does an adult, who has lived a relatively 'safe' and comfortable life, build authentic resilience later in life without manufacture-induced trauma? What is the most 'honest' way to test your own mettle?",
+    "target_length": "3-5 paragraphs",
+    "item1": "training for and completing an ultra-marathon or Ironman",
+    "item2": "taking up solo wilderness survival and camping"
+  },
+  {
+    "question": "Which has a steeper 'uncanny valley' of difficulty where you look worse before you look better?",
+    "target_length": "2-3 paragraphs",
+    "item1": "learning to play the violin",
+    "item2": "learning to sing properly"
+  },
+  {
+    "question": "I'm considering moving abroad for a year. I want to actually understand a different culture, not just live in an expat bubble. Which path leads to deeper cultural integration?",
+    "target_length": "3-6 sentences",
+    "item1": "working for a local company in their native language",
+    "item2": "volunteering with a hyper-local grassroots organization"
+  },
+  {
+    "question": "I want to be able to handle myself in a crisis. Which type of training provides the most 'general purpose' capability for helping others in unexpected, non-combative emergencies?",
+    "target_length": "2-3 paragraphs",
+    "item1": "Wilderness First Responder (WFR) certification",
+    "item2": "Mental Health First Aid training"
+  },
+  {
+    "question": "I'm looking for a first-date activity that allows for conversation but takes the pressure off. Which is the best litmus test for compatibility?",
+    "target_length": "2-3 paragraphs",
+    "item1": "a visit to a large, interactive museum",
+    "item2": "browsing a massive used bookstore together"
+  },
+  {
+    "question": "I have severe social anxiety but I'm lonely and want to make friends. Which setting is less overwhelming for someone who might need to leave suddenly if they get panicked?",
+    "target_length": "3-6 sentences",
+    "item1": "a large, loud board game cafe",
+    "item2": "a quiet book club at a library"
+  },
+  {
+    "question": "Which is harder to maintain as a lifelong habit?",
+    "target_length": "1-2 paragraphs",
+    "item1": "daily meditation",
+    "item2": "keeping a daily journal"
+  },
+  {
+    "question": "I'm trying to reduce my carbon footprint, but the advice out there is so contradictory. I can't do everything at once. Which of these changes actually makes the most significant dent in an individual's lifetime environmental impact?",
+    "target_length": "3-5 paragraphs",
+    "item1": "switching to a strictly plant-based diet",
+    "item2": "giving up air travel for leisure"
+  },
+  {
+    "question": "Which ancient civilization would provide the most jarring 'culture shock' for a modern person, assuming language wasn't a barrier?",
+    "target_length": "1-2 paragraphs",
+    "item1": "the Aztec Empire at its peak",
+    "item2": "Sparta during the height of its military reform"
+  },
+  {
+    "question": "My partner of three years got a dream job offer in a city I dislike. I love my current career and social circle. We're at a crossroads. Which sacrifice is generally more likely to lead to long-term regret?",
+    "target_length": "5-10 paragraphs",
+    "item1": "moving for the partner's career",
+    "item2": "attempting a long-distance relationship"
+  },
+  {
+    "question": "Our city is facing a housing crisis and the city council is split on the best intervention. Which policy approach historically leads to more stable, long-term affordability without stifling necessary new construction?",
+    "target_length": "4-8 paragraphs",
+    "item1": "strict rent control and tenant protections",
+    "item2": "broad upzoning and elimination of single-family mandates"
+  },
+  {
+    "question": "I’ve been offered four different roles at my mid-sized tech company. Which one carries the most 'future-proof' career capital in an economy increasingly dominated by AI?",
+    "target_length": "3-5 paragraphs",
+    "item1": "Product Management (focusing on strategy and empathy)",
+    "item2": "Data Science (focusing on the algorithms and training)"
+  },
+  {
+    "question": "I am a high-functioning autistic adult looking for a way to meet people that doesn't involve loud bars or small talk. I need a social structure with clear rules and a shared focus. Which community is generally most welcoming to neurodivergent folks?",
+    "target_length": "4-8 paragraphs",
+    "item1": "local tabletop wargaming groups",
+    "item2": "community gardening cooperatives"
+  },
+  {
+    "question": "I'm looking for a way to improve my public speaking and presence. I'm terrified of people looking at me, but my new job requires a lot of presentations. Which is a better 'exposure therapy' for a total novice?",
+    "target_length": "2-3 paragraphs",
+    "item1": "joining a local Toastmasters club",
+    "item2": "taking a beginner's improv comedy class"
+  },
+  {
+    "question": "I want to travel, but I've realized that being a 'tourist'—checking boxes at monuments—makes me feel hollow. I want to feel like a participant in a place. Which style of travel offers the deepest sense of cultural 'immersion' for a solo traveler with two weeks of PTO?",
+    "target_length": "4-8 paragraphs",
+    "item1": "staying in a remote village through a homestay program",
+    "item2": "taking a intensive two-week language immersion course"
+  },
+  {
+    "question": "I'm an introvert who wants to improve my social confidence. The thought of 'networking' makes me nauseous. I need an activity that forces me to interact with others in a structured way where I have a 'role' to play. Which would be most effective for building social stamina?",
+    "target_length": "3-5 paragraphs",
+    "item1": "taking a class in public speaking (Toastmasters)",
+    "item2": "joining a tabletop role-playing game (RPG) group"
+  }
+]

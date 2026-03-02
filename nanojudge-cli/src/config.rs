@@ -14,6 +14,8 @@ pub struct NanojudgeConfig {
     pub rounds: Option<usize>,
     pub concurrency: Option<usize>,
     pub prompt_template: Option<String>,
+    pub temperature: Option<f64>,
+    pub temperature_jitter: Option<f64>,
 }
 
 const DEFAULT_CONFIG_TEMPLATE: &str = "\
@@ -33,6 +35,13 @@ const DEFAULT_CONFIG_TEMPLATE: &str = "\
 
 # Max concurrent LLM requests
 # concurrency = 32
+
+# LLM sampling temperature (required — each model needs a different value)
+# temperature = 0.7
+
+# Temperature jitter: standard deviation of N(1.0, jitter) multiplier.
+# 0.0 = no jitter (default). Adds randomness to temperature across calls.
+# temperature_jitter = 0.0
 
 # Path to a custom prompt template file.
 # The template must contain these variables: $criterion, $option1, $option2, $length

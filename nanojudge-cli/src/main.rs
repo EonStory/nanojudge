@@ -1,3 +1,4 @@
+mod benchmark;
 mod config;
 mod llm;
 mod output;
@@ -33,8 +34,53 @@ struct Cli {
 enum Commands {
     /// Run pairwise ranking on a list of items
     Rank(RankArgs),
+    /// Benchmark an LLM endpoint for throughput, latency, and reliability
+    Benchmark(BenchmarkArgs),
     /// Create a default config file at ~/.config/nanojudge/config.toml
     Init,
+}
+
+#[derive(Parser)]
+struct BenchmarkArgs {
+    /// OpenAI-compatible base URL (e.g. http://localhost:8000)
+    #[arg(long)]
+    endpoint: Option<String>,
+
+    /// Bearer token for the API (also reads OPENAI_API_KEY env var)
+    #[arg(long)]
+    api_key: Option<String>,
+
+    /// Model ID for the API
+    #[arg(long)]
+    model: Option<String>,
+
+    /// Number of comparison pairs to run (each pair runs both directions)
+    #[arg(short, long, default_value = "100")]
+    num_pairs: usize,
+
+    /// Max concurrent LLM requests
+    #[arg(long)]
+    concurrency: Option<usize>,
+
+    /// LLM sampling temperature (required — each model needs a different value)
+    #[arg(long)]
+    temperature: Option<f64>,
+
+    /// Temperature jitter: std dev of N(1.0, jitter) multiplier. 0.0 = no jitter (default).
+    #[arg(long)]
+    temperature_jitter: Option<f64>,
+
+    /// Win probability for narrow wins. Default: 0.8.
+    #[arg(long)]
+    narrow_win: Option<f64>,
+
+    /// Path to a custom prompt template file
+    #[arg(long)]
+    prompt_template: Option<PathBuf>,
+
+    /// Path to config file (default: ~/.config/nanojudge/config.toml)
+    #[arg(long)]
+    config: Option<PathBuf>,
 }
 
 #[derive(Parser)]
@@ -101,9 +147,13 @@ struct RankArgs {
     #[arg(long)]
     narrow_win: Option<f64>,
 
-    /// LLM sampling temperature. Default: 0.3.
+    /// LLM sampling temperature (required — each model needs a different value)
     #[arg(long)]
     temperature: Option<f64>,
+
+    /// Temperature jitter: std dev of N(1.0, jitter) multiplier. 0.0 = no jitter (default).
+    #[arg(long)]
+    temperature_jitter: Option<f64>,
 
     /// How much analysis the LLM should write before its verdict.
     /// Default: "2 paragraphs". Examples: "3 sentences", "1 paragraph", "5 sentences".
@@ -199,12 +249,65 @@ async fn main() {
 
     match cli.command {
         Commands::Rank(args) => run_rank(args).await,
+        Commands::Benchmark(args) => run_benchmark_cmd(args).await,
         Commands::Init => {
             let path = config::create_default_config();
             println!("Created config at {}", path.display());
             println!("Edit it to set your default endpoint, model, etc.");
         }
     }
+}
+
+async fn run_benchmark_cmd(args: BenchmarkArgs) {
+    let config_path = args.config.clone().unwrap_or_else(config::config_path);
+    let cfg = config::load_config(&config_path);
+
+    let endpoint = args.endpoint.clone()
+        .or(cfg.endpoint)
+        .unwrap_or_else(|| {
+            bail(format!("No endpoint specified. Pass --endpoint or set it in {}", config_path.display()));
+        });
+    let model = args.model.clone()
+        .or(cfg.model)
+        .unwrap_or_else(|| {
+            bail(format!("No model specified. Pass --model or set it in {}", config_path.display()));
+        });
+    let concurrency = args.concurrency.or(cfg.concurrency).unwrap_or(32);
+    let temperature = args.temperature
+        .or(cfg.temperature)
+        .unwrap_or_else(|| {
+            bail(format!("No temperature specified. Pass --temperature or set it in {}", config_path.display()));
+        });
+    let temperature_jitter = args.temperature_jitter.or(cfg.temperature_jitter).unwrap_or(0.0);
+    let narrow_win = args.narrow_win.unwrap_or(parse::DEFAULT_NARROW_WIN);
+
+    let template = {
+        let template_path = args.prompt_template.clone()
+            .or_else(|| cfg.prompt_template.map(PathBuf::from));
+        match template_path {
+            Some(path) => prompt::load_template(&path),
+            None => prompt::DEFAULT_TEMPLATE.to_string(),
+        }
+    };
+
+    let api_key = args.api_key.clone()
+        .or_else(|| std::env::var("OPENAI_API_KEY").ok());
+
+    if args.num_pairs == 0 {
+        bail("--num-pairs must be at least 1");
+    }
+
+    benchmark::run_benchmark(
+        &endpoint,
+        &model,
+        api_key,
+        args.num_pairs,
+        concurrency,
+        temperature,
+        temperature_jitter,
+        narrow_win,
+        &template,
+    ).await;
 }
 
 async fn run_rank(args: RankArgs) {
@@ -252,7 +355,12 @@ async fn run_rank(args: RankArgs) {
         .clone()
         .or_else(|| std::env::var("OPENAI_API_KEY").ok());
 
-    let temperature = args.temperature.unwrap_or(0.3);
+    let temperature = args.temperature
+        .or(cfg.temperature)
+        .unwrap_or_else(|| {
+            bail(format!("No temperature specified. Pass --temperature or set it in {}", config_path.display()));
+        });
+    let temperature_jitter = args.temperature_jitter.or(cfg.temperature_jitter).unwrap_or(0.0);
     let analysis_length = args.analysis_length.clone().unwrap_or_else(|| "2 paragraphs".to_string());
 
     let llm_config = Arc::new(LlmConfig {
@@ -260,6 +368,7 @@ async fn run_rank(args: RankArgs) {
         model: model.clone(),
         api_key,
         temperature,
+        temperature_jitter,
     });
 
     let prompt_template = Arc::new(prompt_template);

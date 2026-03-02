@@ -11,6 +11,9 @@ pub struct LlmConfig {
     pub model: String,
     pub api_key: Option<String>,
     pub temperature: f64,
+    /// Standard deviation of temperature jitter. 0.0 = no jitter (default).
+    /// Uses N(1.0, jitter) multiplier clamped to [0.8, 1.2].
+    pub temperature_jitter: f64,
 }
 
 #[derive(Serialize)]
@@ -32,6 +35,13 @@ struct ChatCompletionRequest {
 #[derive(Debug, Deserialize)]
 struct ChatCompletionResponse {
     choices: Vec<Choice>,
+    usage: Option<Usage>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct Usage {
+    pub prompt_tokens: u64,
+    pub completion_tokens: u64,
 }
 
 #[derive(Debug, Deserialize)]
@@ -59,34 +69,38 @@ pub struct ComparisonResult {
     pub retries_used: usize,
 }
 
-/// Apply normal jitter to temperature: N(1.0, 0.1) clamped to [0.8, 1.2].
+/// Apply normal jitter to temperature: N(1.0, jitter_std) clamped to [0.8, 1.2].
 /// Uses Box-Muller transform to avoid an extra crate dependency.
-fn jittered_temperature(base: f64) -> f64 {
+/// Returns base unchanged if jitter_std is 0.0.
+fn jittered_temperature(base: f64, jitter_std: f64) -> f64 {
+    if jitter_std == 0.0 {
+        return base;
+    }
     let mut rng = rand::rng();
     let u1: f64 = rng.random();
     let u2: f64 = rng.random();
     let z = (-2.0 * u1.ln()).sqrt() * (2.0 * std::f64::consts::PI * u2).cos();
-    let multiplier = (1.0 + 0.1 * z).clamp(0.8, 1.2);
+    let multiplier = (1.0 + jitter_std * z).clamp(0.8, 1.2);
     base * multiplier
 }
 
 /// Send one HTTP request to the LLM and parse the response.
 /// Returns Ok on any successful HTTP response (even if verdict is unparseable).
 /// Returns Err only on HTTP/network failures.
-async fn send_comparison_request(
+pub async fn send_comparison_request(
     client: &Client,
     config: &LlmConfig,
     prompt: &str,
     narrow_win: f64,
-) -> Result<(ParseResult, String), String> {
+) -> Result<(ParseResult, String, Option<Usage>), String> {
     let request = ChatCompletionRequest {
         model: config.model.clone(),
         messages: vec![ChatMessage {
             role: "user",
             content: prompt.to_string(),
         }],
-        temperature: jittered_temperature(config.temperature),
-        max_tokens: 4000,
+        temperature: jittered_temperature(config.temperature, config.temperature_jitter),
+        max_tokens: 8000,
         logprobs: true,
         top_logprobs: 10,
     };
@@ -124,7 +138,7 @@ async fn send_comparison_request(
         .unwrap_or_default();
 
     let parse_result = parse_response(&content, &logprobs, narrow_win);
-    Ok((parse_result, content))
+    Ok((parse_result, content, data.usage))
 }
 
 /// Call the LLM to compare two items, with retries on HTTP errors.
@@ -150,7 +164,7 @@ pub async fn compare_pair(
     let mut last_err = String::new();
     for attempt in 0..=max_retries {
         match send_comparison_request(client, config, &prompt, narrow_win).await {
-            Ok((parse_result, content)) => {
+            Ok((parse_result, content, _usage)) => {
                 return Ok(ComparisonResult {
                     item1_id,
                     item2_id,
