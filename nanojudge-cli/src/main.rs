@@ -161,7 +161,9 @@ struct RankArgs {
     analysis_length: Option<String>,
 
     /// How many top positions to track for the top-heavy strategy.
-    /// Default: sqrt(n) * 3, clamped to n-1. Only meaningful with --strategy top-heavy.
+    /// Default: sqrt(n) * 3, clamped to n-1 — a rough heuristic with no empirical backing,
+    /// just a guess at how many top items users typically care about.
+    /// Only used with --strategy top-heavy.
     #[arg(long)]
     top_k: Option<usize>,
 
@@ -430,6 +432,8 @@ async fn run_rank(args: RankArgs) {
         eprintln!("Warning: --top-k has no effect with the balanced strategy. It only applies to --strategy top-heavy.");
     }
 
+    // Pure heuristic — no empirical basis. Just a guess at how many top
+    // positions users typically care about for a given list size.
     let top_k = args.top_k.unwrap_or_else(|| {
         ((items.len() as f64).sqrt() * 3.0) as usize
     }).min(items.len() - 1);
