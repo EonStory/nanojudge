@@ -4,6 +4,8 @@ Rank large lists of arbitrary items using LLMs as judges. You provide the items 
 
 Works with any OpenAI-compatible API endpoint — local vLLM, OpenAI, Anthropic, etc.
 
+Try it in your browser at [nanojudge.com](https://nanojudge.com) — no install needed.
+
 ## Install
 
 Download a prebuilt binary from [GitHub Releases](https://github.com/nanojudge/nanojudge/releases), or build from source:
