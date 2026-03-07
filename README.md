@@ -50,12 +50,12 @@ cat papers.txt | nanojudge rank \
 Output:
 
 ```
- # | Item       |   Score | 95% CI Low | 95% CI High | Comparisons
----|------------|---------|------------|-------------|------------
- 1 | Mango      |  1.5823 |       1.20 |        1.97 |          18
- 2 | Strawberry |  1.1491 |       0.85 |        1.48 |          16
- 3 | Apple      |  0.7512 |       0.45 |        1.05 |          17
- 4 | Banana     |  0.4204 |       0.12 |        0.68 |          15
+ # | Item       |   Score | 95% CI Low | 95% CI High | Comparisons | ID
+---|------------|---------|------------|-------------|-------------|----
+ 1 | Mango      |  1.5823 |       1.20 |        1.97 |          18 |  2
+ 2 | Strawberry |  1.1491 |       0.85 |        1.48 |          16 |  3
+ 3 | Apple      |  0.7512 |       0.45 |        1.05 |          17 |  0
+ 4 | Banana     |  0.4204 |       0.12 |        0.68 |          15 |  1
 
 4 items ranked across 10 rounds (30 comparisons)
 Position bias — estimated: 0.523 [0.481, 0.567] (corrected for in scores, 0.5 = no bias)

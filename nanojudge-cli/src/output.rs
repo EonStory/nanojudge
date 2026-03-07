@@ -5,6 +5,7 @@ use serde::Serialize;
 #[derive(Serialize)]
 struct JsonRankedItem {
     rank: usize,
+    id: i64,
     name: String,
     score: f64,
     lower_bound: f64,
@@ -28,16 +29,16 @@ pub fn print_table(rankings: &[RankedItem], names: &[String], games_played: &[us
         .max(4); // at least "Item"
 
     // Header
-    println!(" # | {:<name_width$} |   Score | 95% CI Low | 95% CI High | Comparisons", "Item");
-    println!("---|-{}-|---------|------------|-------------|------------", "-".repeat(name_width));
+    println!(" # | {:<name_width$} |   Score | 95% CI Low | 95% CI High | Comparisons | ID", "Item");
+    println!("---|-{}-|---------|------------|-------------|-------------|----", "-".repeat(name_width));
 
     // Rows
     for (i, r) in rankings.iter().enumerate() {
         let name = &names[r.item as usize];
         let games = games_played[r.item as usize];
         println!(
-            "{:>2} | {:<name_width$} | {:>7.4} | {:>10.2} | {:>11.2} | {:>11}",
-            i + 1, name, r.score, r.lower_bound, r.upper_bound, games,
+            "{:>2} | {:<name_width$} | {:>7.4} | {:>10.2} | {:>11.2} | {:>11} | {:>2}",
+            i + 1, name, r.score, r.lower_bound, r.upper_bound, games, r.item,
         );
     }
 
@@ -60,6 +61,7 @@ pub fn print_json(rankings: &[RankedItem], names: &[String], rounds: usize, tota
         .enumerate()
         .map(|(i, r)| JsonRankedItem {
             rank: i + 1,
+            id: r.item,
             name: names[r.item as usize].clone(),
             score: r.score,
             lower_bound: r.lower_bound,
