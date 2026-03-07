@@ -31,6 +31,14 @@ nanojudge rank \
   --model model-id \
   --rounds 20 --concurrency 64
 
+# Or point at a directory — each text file becomes one item
+nanojudge rank \
+  --criterion "Which essay is more persuasive?" \
+  --items essays/ \
+  --endpoint http://localhost:8000 \
+  --model model-id \
+  --rounds 15
+
 # Pipe items from stdin
 cat papers.txt | nanojudge rank \
   --criterion "Which paper is more impactful?" \
@@ -44,10 +52,10 @@ Output:
 ```
  # | Item       |   Score | 95% CI Low | 95% CI High | Comparisons
 ---|------------|---------|------------|-------------|------------
- 1 | Mango      |  1.8234 |       1.20 |        2.79 |          18
- 2 | Strawberry |  1.0912 |       0.65 |        1.62 |          16
- 3 | Apple      |  0.5012 |       0.29 |        0.88 |          17
- 4 | Banana     | -0.2103 |      -0.71 |        0.34 |          15
+ 1 | Mango      |  1.5823 |       1.20 |        1.97 |          18
+ 2 | Strawberry |  1.1491 |       0.85 |        1.48 |          16
+ 3 | Apple      |  0.7512 |       0.45 |        1.05 |          17
+ 4 | Banana     |  0.4204 |       0.12 |        0.68 |          15
 
 4 items ranked across 10 rounds (30 comparisons)
 Position bias — estimated: 0.523 [0.481, 0.567] (corrected for in scores, 0.5 = no bias)
