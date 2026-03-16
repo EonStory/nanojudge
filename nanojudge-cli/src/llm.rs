@@ -207,3 +207,38 @@ pub async fn compare_pair(
 
     Err(last_err)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_jittered_temperature_no_jitter() {
+        // With jitter_std = 0.0, should return base exactly
+        assert_eq!(jittered_temperature(0.7, 0.0), 0.7);
+        assert_eq!(jittered_temperature(1.0, 0.0), 1.0);
+        assert_eq!(jittered_temperature(0.0, 0.0), 0.0);
+    }
+
+    #[test]
+    fn test_jittered_temperature_stays_in_range() {
+        // With jitter, result should be within [base * 0.8, base * 1.2]
+        let base = 0.7;
+        for _ in 0..1000 {
+            let result = jittered_temperature(base, 0.1);
+            assert!(result >= base * 0.8, "result {result} < {}", base * 0.8);
+            assert!(result <= base * 1.2, "result {result} > {}", base * 1.2);
+        }
+    }
+
+    #[test]
+    fn test_jittered_temperature_high_jitter_still_clamped() {
+        // Even with extreme jitter, clamping should hold
+        let base = 1.0;
+        for _ in 0..1000 {
+            let result = jittered_temperature(base, 10.0);
+            assert!(result >= base * 0.8);
+            assert!(result <= base * 1.2);
+        }
+    }
+}
