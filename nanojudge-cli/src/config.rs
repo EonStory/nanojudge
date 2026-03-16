@@ -59,10 +59,13 @@ const DEFAULT_CONFIG_TEMPLATE: &str = "\
 # prompt_template = \"/path/to/my-prompt.txt\"
 ";
 
-/// Returns the default config path: ~/.config/nanojudge/config.toml
+/// Returns the default config path.
+/// Linux: ~/.config/nanojudge/config.toml
+/// macOS: ~/Library/Application Support/nanojudge/config.toml
+/// Windows: C:\Users\<user>\AppData\Roaming\nanojudge\config.toml
 pub fn config_path() -> PathBuf {
-    let home = std::env::var("HOME").unwrap_or_else(|_| bail("HOME environment variable not set"));
-    PathBuf::from(home).join(".config").join("nanojudge").join("config.toml")
+    let config_dir = dirs::config_dir().unwrap_or_else(|| bail("Could not determine config directory"));
+    config_dir.join("nanojudge").join("config.toml")
 }
 
 /// Load config from a file path. Returns default (all None) if file doesn't exist.
