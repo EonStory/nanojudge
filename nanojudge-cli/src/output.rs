@@ -17,6 +17,9 @@ struct JsonOutput {
     items: Vec<JsonRankedItem>,
     total_comparisons: usize,
     rounds: usize,
+    positional_bias: f64,
+    positional_bias_ci_low: f64,
+    positional_bias_ci_high: f64,
 }
 
 /// Print results as a formatted terminal table.
@@ -55,7 +58,7 @@ pub fn print_table(rankings: &[RankedItem], names: &[String], games_played: &[us
 }
 
 /// Print results as JSON.
-pub fn print_json(rankings: &[RankedItem], names: &[String], rounds: usize, total_comparisons: usize) {
+pub fn print_json(rankings: &[RankedItem], names: &[String], rounds: usize, total_comparisons: usize, positional_bias: f64, positional_bias_confidence_interval: (f64, f64)) {
     let items: Vec<JsonRankedItem> = rankings
         .iter()
         .enumerate()
@@ -73,6 +76,9 @@ pub fn print_json(rankings: &[RankedItem], names: &[String], rounds: usize, tota
         items,
         total_comparisons,
         rounds,
+        positional_bias,
+        positional_bias_ci_low: positional_bias_confidence_interval.0,
+        positional_bias_ci_high: positional_bias_confidence_interval.1,
     };
 
     println!("{}", serde_json::to_string_pretty(&output).unwrap());

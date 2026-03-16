@@ -719,7 +719,7 @@ async fn run_rank(args: RankArgs) {
     }
 
     if args.json {
-        output::print_json(&scoring_result.rankings, &titles, rounds, total_comparisons);
+        output::print_json(&scoring_result.rankings, &titles, rounds, total_comparisons, scoring_result.positional_bias, scoring_result.positional_bias_confidence_interval);
     } else {
         output::print_table(
             &scoring_result.rankings,
