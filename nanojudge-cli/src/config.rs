@@ -99,3 +99,73 @@ pub fn create_default_config() -> PathBuf {
 
     path
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::io::Write;
+
+    #[test]
+    fn test_config_path_ends_correctly() {
+        let path = config_path();
+        assert!(path.ends_with("nanojudge/config.toml"));
+    }
+
+    #[test]
+    fn test_load_config_missing_file_returns_defaults() {
+        let config = load_config(Path::new("/tmp/nanojudge-test-nonexistent/config.toml"));
+        assert!(config.endpoint.is_none());
+        assert!(config.model.is_none());
+        assert!(config.rounds.is_none());
+        assert!(config.concurrency.is_none());
+        assert!(config.temperature.is_none());
+    }
+
+    #[test]
+    fn test_load_config_parses_fields() {
+        let mut tmpfile = tempfile::NamedTempFile::new().unwrap();
+        write!(tmpfile, r#"
+endpoint = "http://localhost:8000"
+model = "qwen-4b"
+rounds = 10
+concurrency = 32
+temperature = 0.7
+temperature_jitter = 0.05
+presence_penalty = 1.5
+top_p = 0.95
+"#).unwrap();
+
+        let config = load_config(tmpfile.path());
+        assert_eq!(config.endpoint.unwrap(), "http://localhost:8000");
+        assert_eq!(config.model.unwrap(), "qwen-4b");
+        assert_eq!(config.rounds.unwrap(), 10);
+        assert_eq!(config.concurrency.unwrap(), 32);
+        assert_eq!(config.temperature.unwrap(), 0.7);
+        assert_eq!(config.temperature_jitter.unwrap(), 0.05);
+        assert_eq!(config.presence_penalty.unwrap(), 1.5);
+        assert_eq!(config.top_p.unwrap(), 0.95);
+    }
+
+    #[test]
+    fn test_load_config_partial_fields() {
+        let mut tmpfile = tempfile::NamedTempFile::new().unwrap();
+        write!(tmpfile, r#"
+endpoint = "http://localhost:8000"
+rounds = 5
+"#).unwrap();
+
+        let config = load_config(tmpfile.path());
+        assert_eq!(config.endpoint.unwrap(), "http://localhost:8000");
+        assert_eq!(config.rounds.unwrap(), 5);
+        assert!(config.model.is_none());
+        assert!(config.temperature.is_none());
+    }
+
+    #[test]
+    fn test_default_config_template_parses() {
+        // The default template is all comments, so it should parse to all-None
+        let config: NanojudgeConfig = toml::from_str(DEFAULT_CONFIG_TEMPLATE).unwrap();
+        assert!(config.endpoint.is_none());
+        assert!(config.model.is_none());
+    }
+}
