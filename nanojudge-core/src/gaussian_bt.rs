@@ -5,7 +5,7 @@
 /// Internal module — operates on pre-mapped `usize` indices, not caller IDs.
 use rand::Rng;
 
-use crate::types::{IndexedComparison, RankedItem};
+use crate::types::{IndexedComparison, RankedItem, ScoringOptions};
 
 /// Internal representation of a comparison in logit space.
 struct LogitComparison {
@@ -45,6 +45,8 @@ pub struct GaussianBT {
 
     /// Current positional bias estimate (logit space, 0 = no bias).
     bias: f64,
+    /// Prior mean for positional bias (logit space).
+    bias_prior_mu: f64,
 
     // Hyperparameters (fixed)
     prior_mu: f64,
@@ -59,7 +61,7 @@ impl GaussianBT {
     pub fn new(
         num_items: usize,
         results: &[IndexedComparison],
-        regularization_strength: f64,
+        options: &ScoringOptions,
     ) -> Self {
         let ghost_idx = num_items;
         let total = num_items + 1;
@@ -90,7 +92,7 @@ impl GaussianBT {
         let num_real_comparisons = comparisons.len();
 
         // Ghost regularization comparisons
-        if regularization_strength > 0.0 {
+        if options.regularization_strength > 0.0 {
             for i in 0..num_items {
                 let comp_idx = comparisons.len();
                 comparisons.push(LogitComparison {
@@ -110,15 +112,16 @@ impl GaussianBT {
             comparisons,
             item_comparisons,
             log_strengths: vec![prior_mu; total],
-            regularization_strength,
+            regularization_strength: options.regularization_strength,
             num_real_comparisons,
-            bias: 0.0, // start at no bias, let MCMC estimate it
+            bias: options.bias_prior_logit,
+            bias_prior_mu: options.bias_prior_logit,
             prior_mu,
-            prior_tau2: 10.0,
-            sigma2: 1.0,
-            proposal_std: 0.3,
-            bias_prior_tau2: 2.0, // N(0, √2) in logit space — 95% mass covers ~0.06 to ~0.94 in probability
-            bias_proposal_std: 0.15,
+            prior_tau2: options.prior_tau2,
+            sigma2: options.sigma2,
+            proposal_std: options.proposal_std,
+            bias_prior_tau2: options.bias_prior_tau2,
+            bias_proposal_std: options.bias_proposal_std,
         }
     }
 
@@ -169,8 +172,9 @@ impl GaussianBT {
     /// Log-posterior for the positional bias parameter.
     /// Iterates over real comparisons only (not ghost).
     fn log_posterior_bias(&self, bias: f64) -> f64 {
-        // Prior: N(0, bias_prior_tau2)
-        let mut log_prob = -0.5 * bias * bias / self.bias_prior_tau2;
+        // Prior: N(bias_prior_mu, bias_prior_tau2)
+        let bias_diff = bias - self.bias_prior_mu;
+        let mut log_prob = -0.5 * bias_diff * bias_diff / self.bias_prior_tau2;
 
         // Likelihood over real comparisons only
         for comp in &self.comparisons[..self.num_real_comparisons] {
@@ -416,11 +420,29 @@ impl GaussianBT {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::types::ScoringOptions;
 
     /// Returns both position orders for a matchup. In production, the pairing
     /// code's 50/50 coin flip achieves this naturally.
     fn make_pair(i1: usize, i2: usize, prob: f64) -> [IndexedComparison; 2] {
         [(i1, i2, prob), (i2, i1, 1.0 - prob)]
+    }
+
+    fn default_options() -> ScoringOptions {
+        ScoringOptions {
+            iterations: 200,
+            burn_in: 100,
+            confidence_level: 0.95,
+            top_k: 0,
+            warm_start: None,
+            regularization_strength: 0.01,
+            prior_tau2: 10.0,
+            sigma2: 1.0,
+            proposal_std: 0.3,
+            bias_prior_tau2: 2.0,
+            bias_proposal_std: 0.15,
+            bias_prior_logit: 0.0,
+        }
     }
 
     #[test]
@@ -431,7 +453,8 @@ mod tests {
             make_pair(1, 2, 0.7),
         ].into_iter().flatten().collect();
 
-        let mut mcmc = GaussianBT::new(3, &results, 0.01);
+        let opts = default_options();
+        let mut mcmc = GaussianBT::new(3, &results, &opts);
         let ranked = mcmc.calculate(500, 0.95, 200);
 
         assert_eq!(ranked[0].item, 0); // A first
@@ -445,11 +468,12 @@ mod tests {
             make_pair(1, 2, 0.8),
         ].into_iter().flatten().collect();
 
-        let mut mcmc = GaussianBT::new(3, &results, 0.01);
+        let opts = default_options();
+        let mut mcmc = GaussianBT::new(3, &results, &opts);
         let _result1 = mcmc.calculate_with_samples(50, 50, 0);
         let state = mcmc.get_current_state();
 
-        let mut mcmc2 = GaussianBT::new(3, &results, 0.01);
+        let mut mcmc2 = GaussianBT::new(3, &results, &opts);
         let result2 = mcmc2.calculate_incremental_with_samples(&state, 50, 0, 0);
 
         assert_eq!(result2.means.len(), 3);
@@ -466,7 +490,8 @@ mod tests {
             make_pair(2, 3, 0.6),
         ].into_iter().flatten().collect();
 
-        let mut mcmc = GaussianBT::new(4, &results, 0.01);
+        let opts = default_options();
+        let mut mcmc = GaussianBT::new(4, &results, &opts);
         let result = mcmc.calculate_with_samples(200, 100, 2);
 
         let probs = result.top_k_probs.unwrap();

@@ -137,6 +137,55 @@ struct ConfigArgs {
     /// The template must contain: $criterion, $option1, $option2, $length
     #[arg(long)]
     prompt_template: Option<PathBuf>,
+
+    /// Confidence interval level (e.g. 0.95 for 95%). Default: 0.95.
+    #[arg(long)]
+    confidence_level: Option<f64>,
+
+    /// Ghost player regularization strength. Default: 0.01.
+    #[arg(long)]
+    regularization_strength: Option<f64>,
+
+    /// Number of post-burn-in MCMC iterations for final scoring. Default: 2000.
+    #[arg(long)]
+    mcmc_iterations: Option<usize>,
+
+    /// MCMC burn-in iterations for final scoring. Default: 500.
+    #[arg(long)]
+    mcmc_burn_in: Option<usize>,
+
+    /// Positional bias prior in probability space (0.0-1.0 exclusive).
+    /// 0.5 = no bias (default). >0.5 = model tends to favor item listed first.
+    #[arg(long)]
+    bias_prior: Option<f64>,
+
+    /// Info-gain exponent for matchmaking. Higher = more exploitation. Default: 1.0.
+    #[arg(long)]
+    matchmaking_sharpness: Option<f64>,
+
+    /// Minimum games per item before using top-heavy strategy. Default: 3.
+    #[arg(long)]
+    min_games: Option<usize>,
+
+    /// Prior variance on log-strengths. Default: 10.0.
+    #[arg(long)]
+    prior_tau2: Option<f64>,
+
+    /// Observation noise variance. Default: 1.0.
+    #[arg(long)]
+    sigma2: Option<f64>,
+
+    /// MH proposal step size for strengths. Default: 0.3.
+    #[arg(long)]
+    proposal_std: Option<f64>,
+
+    /// Prior variance on positional bias (logit space). Default: 2.0.
+    #[arg(long)]
+    bias_prior_tau2: Option<f64>,
+
+    /// MH proposal step size for bias. Default: 0.15.
+    #[arg(long)]
+    bias_proposal_std: Option<f64>,
 }
 
 #[derive(Parser)]
@@ -365,6 +414,18 @@ struct ResolvedConfig {
     retries: usize,
     analysis_length: String,
     prompt_template: String,
+    confidence_level: f64,
+    regularization_strength: f64,
+    mcmc_iterations: usize,
+    mcmc_burn_in: usize,
+    bias_prior_logit: f64,
+    matchmaking_sharpness: f64,
+    min_games_before_strategy: usize,
+    prior_tau2: f64,
+    sigma2: f64,
+    proposal_std: f64,
+    bias_prior_tau2: f64,
+    bias_proposal_std: f64,
 }
 
 /// Resolve CLI args + config file + env vars + defaults into final config.
@@ -406,6 +467,37 @@ fn resolve_config(shared: &ConfigArgs, cfg: &config::NanojudgeConfig, config_pat
         .unwrap_or(DEFAULT_MAX_RETRIES);
     let analysis_length = merge_opt(shared.analysis_length.clone(), cfg.analysis_length.clone(), "analysis-length")
         .unwrap_or_else(|| DEFAULT_ANALYSIS_LENGTH.to_string());
+
+    let confidence_level = merge_opt(shared.confidence_level, cfg.confidence_level, "confidence-level")
+        .unwrap_or(0.95);
+    let regularization_strength = merge_opt(shared.regularization_strength, cfg.regularization_strength, "regularization-strength")
+        .unwrap_or(0.01);
+    let mcmc_iterations = merge_opt(shared.mcmc_iterations, cfg.mcmc_iterations, "mcmc-iterations")
+        .unwrap_or(2000);
+    let mcmc_burn_in = merge_opt(shared.mcmc_burn_in, cfg.mcmc_burn_in, "mcmc-burn-in")
+        .unwrap_or(500);
+    let matchmaking_sharpness = merge_opt(shared.matchmaking_sharpness, cfg.matchmaking_sharpness, "matchmaking-sharpness")
+        .unwrap_or(1.0);
+    let min_games_before_strategy = merge_opt(shared.min_games, cfg.min_games, "min-games")
+        .unwrap_or(3);
+    let prior_tau2 = merge_opt(shared.prior_tau2, cfg.prior_tau2, "prior-tau2")
+        .unwrap_or(10.0);
+    let sigma2 = merge_opt(shared.sigma2, cfg.sigma2, "sigma2")
+        .unwrap_or(1.0);
+    let proposal_std = merge_opt(shared.proposal_std, cfg.proposal_std, "proposal-std")
+        .unwrap_or(0.3);
+    let bias_prior_tau2 = merge_opt(shared.bias_prior_tau2, cfg.bias_prior_tau2, "bias-prior-tau2")
+        .unwrap_or(2.0);
+    let bias_proposal_std = merge_opt(shared.bias_proposal_std, cfg.bias_proposal_std, "bias-proposal-std")
+        .unwrap_or(0.15);
+
+    // bias_prior: user specifies in probability space, we convert to logit
+    let bias_prior = merge_opt(shared.bias_prior, cfg.bias_prior, "bias-prior")
+        .unwrap_or(0.5);
+    if bias_prior <= 0.0 || bias_prior >= 1.0 {
+        bail("--bias-prior must be greater than 0.0 and less than 1.0");
+    }
+    let bias_prior_logit = (bias_prior / (1.0 - bias_prior)).ln();
 
     // no_logprobs: CLI is a bool flag — true means explicitly enabled.
     // false could mean "not specified", so only treat true as a CLI override.
@@ -458,6 +550,18 @@ fn resolve_config(shared: &ConfigArgs, cfg: &config::NanojudgeConfig, config_pat
         retries,
         analysis_length,
         prompt_template,
+        confidence_level,
+        regularization_strength,
+        mcmc_iterations,
+        mcmc_burn_in,
+        bias_prior_logit,
+        matchmaking_sharpness,
+        min_games_before_strategy,
+        prior_tau2,
+        sigma2,
+        proposal_std,
+        bias_prior_tau2,
+        bias_proposal_std,
     }
 }
 
@@ -585,8 +689,8 @@ async fn run_rank(args: RankArgs) {
 
     let engine_config = EngineConfig {
         strategy,
-        matchmaking_sharpness: 1.0,
-        min_games_before_strategy: 3,
+        matchmaking_sharpness: resolved.matchmaking_sharpness,
+        min_games_before_strategy: resolved.min_games_before_strategy,
         number_of_rounds: Some(rounds),
     };
     let mut engine = RankingEngine::new(&item_ids, engine_config);
@@ -719,10 +823,16 @@ async fn run_rank(args: RankArgs) {
                 &ScoringOptions {
                     iterations: 200,
                     burn_in: 100,
-                    confidence_level: 0.95,
+                    confidence_level: resolved.confidence_level,
                     top_k,
                     warm_start: None,
-                    regularization_strength: 0.01,
+                    regularization_strength: resolved.regularization_strength,
+                    prior_tau2: resolved.prior_tau2,
+                    sigma2: resolved.sigma2,
+                    proposal_std: resolved.proposal_std,
+                    bias_prior_tau2: resolved.bias_prior_tau2,
+                    bias_proposal_std: resolved.bias_proposal_std,
+                    bias_prior_logit: resolved.bias_prior_logit,
                 },
             );
             engine.mcmc_top_k_probs = interim.top_k_probs;
@@ -743,12 +853,18 @@ async fn run_rank(args: RankArgs) {
         &item_ids,
         &engine.completed_comparisons,
         &ScoringOptions {
-            iterations: 2000,
-            burn_in: 500,
-            confidence_level: 0.95,
+            iterations: resolved.mcmc_iterations,
+            burn_in: resolved.mcmc_burn_in,
+            confidence_level: resolved.confidence_level,
             top_k: 0,
             warm_start: None,
-            regularization_strength: 0.01,
+            regularization_strength: resolved.regularization_strength,
+            prior_tau2: resolved.prior_tau2,
+            sigma2: resolved.sigma2,
+            proposal_std: resolved.proposal_std,
+            bias_prior_tau2: resolved.bias_prior_tau2,
+            bias_proposal_std: resolved.bias_proposal_std,
+            bias_prior_logit: resolved.bias_prior_logit,
         },
     );
 

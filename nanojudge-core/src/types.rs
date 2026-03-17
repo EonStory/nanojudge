@@ -44,6 +44,18 @@ pub struct ScoringOptions {
     pub warm_start: Option<Vec<f64>>,
     /// Ghost player regularization strength (e.g. 0.01).
     pub regularization_strength: f64,
+    /// Prior variance on log-strengths. Default: 10.0.
+    pub prior_tau2: f64,
+    /// Observation noise variance. Default: 1.0.
+    pub sigma2: f64,
+    /// MH proposal step size for strengths. Default: 0.3.
+    pub proposal_std: f64,
+    /// Prior variance on positional bias (logit space). Default: 2.0.
+    pub bias_prior_tau2: f64,
+    /// MH proposal step size for bias. Default: 0.15.
+    pub bias_proposal_std: f64,
+    /// Prior mean for positional bias in logit space. Default: 0.0 (= 0.5 probability = no bias).
+    pub bias_prior_logit: f64,
 }
 
 /// Result from `run_scoring()`.

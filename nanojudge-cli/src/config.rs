@@ -24,6 +24,18 @@ pub struct NanojudgeConfig {
     pub strategy: Option<String>,
     pub top_k: Option<usize>,
     pub retries: Option<usize>,
+    pub confidence_level: Option<f64>,
+    pub regularization_strength: Option<f64>,
+    pub mcmc_iterations: Option<usize>,
+    pub mcmc_burn_in: Option<usize>,
+    pub bias_prior: Option<f64>,
+    pub matchmaking_sharpness: Option<f64>,
+    pub min_games: Option<usize>,
+    pub prior_tau2: Option<f64>,
+    pub sigma2: Option<f64>,
+    pub proposal_std: Option<f64>,
+    pub bias_prior_tau2: Option<f64>,
+    pub bias_proposal_std: Option<f64>,
 }
 
 const DEFAULT_CONFIG_TEMPLATE: &str = "\
@@ -87,6 +99,47 @@ const DEFAULT_CONFIG_TEMPLATE: &str = "\
 
 # Max retries per comparison on HTTP errors. 0 = no retries. Default: 3.
 # retries = 3
+
+# --- Scoring & MCMC hyperparameters ---
+# Most users should not need to change these.
+
+# Confidence interval level. Default: 0.95 (95%).
+# confidence_level = 0.95
+
+# Ghost player regularization strength. Default: 0.01.
+# regularization_strength = 0.01
+
+# Number of post-burn-in MCMC iterations for final scoring. Default: 2000.
+# mcmc_iterations = 2000
+
+# MCMC burn-in iterations for final scoring. Default: 500.
+# mcmc_burn_in = 500
+
+# Positional bias prior in probability space. 0.5 = no bias (default).
+# Values > 0.5 mean the model tends to favor the first-listed item.
+# Must be > 0.0 and < 1.0 (exclusive).
+# bias_prior = 0.5
+
+# Info-gain exponent for matchmaking. Higher = more exploitation. Default: 1.0.
+# matchmaking_sharpness = 1.0
+
+# Minimum games per item before using top-heavy strategy. Default: 3.
+# min_games = 3
+
+# Prior variance on log-strengths. Default: 10.0.
+# prior_tau2 = 10.0
+
+# Observation noise variance. Default: 1.0.
+# sigma2 = 1.0
+
+# MH proposal step size for strengths. Default: 0.3.
+# proposal_std = 0.3
+
+# Prior variance on positional bias (logit space). Default: 2.0.
+# bias_prior_tau2 = 2.0
+
+# MH proposal step size for bias. Default: 0.15.
+# bias_proposal_std = 0.15
 ";
 
 /// Returns the default config path.

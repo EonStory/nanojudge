@@ -25,6 +25,12 @@
 ///     top_k: 0,
 ///     warm_start: None,
 ///     regularization_strength: 0.01,
+///     prior_tau2: 10.0,
+///     sigma2: 1.0,
+///     proposal_std: 0.3,
+///     bias_prior_tau2: 2.0,
+///     bias_proposal_std: 0.15,
+///     bias_prior_logit: 0.0,
 /// });
 ///
 /// for r in &result.rankings {

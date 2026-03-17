@@ -21,7 +21,7 @@ pub fn run_scoring(
     let mut mcmc = GaussianBT::new(
         num_items,
         &indexed,
-        options.regularization_strength,
+        options,
     );
 
     let samples_result = if let Some(ref warm_start) = options.warm_start {
@@ -104,6 +104,12 @@ mod tests {
             top_k: 0,
             warm_start: None,
             regularization_strength: 0.01,
+            prior_tau2: 10.0,
+            sigma2: 1.0,
+            proposal_std: 0.3,
+            bias_prior_tau2: 2.0,
+            bias_proposal_std: 0.15,
+            bias_prior_logit: 0.0,
         });
 
         assert_eq!(result.rankings.len(), 3);
@@ -128,6 +134,12 @@ mod tests {
             top_k: 0,
             warm_start: None,
             regularization_strength: 0.01,
+            prior_tau2: 10.0,
+            sigma2: 1.0,
+            proposal_std: 0.3,
+            bias_prior_tau2: 2.0,
+            bias_proposal_std: 0.15,
+            bias_prior_logit: 0.0,
         });
 
         let result2 = run_scoring(&item_ids, &comparisons, &ScoringOptions {
@@ -137,6 +149,12 @@ mod tests {
             top_k: 0,
             warm_start: Some(result1.state),
             regularization_strength: 0.01,
+            prior_tau2: 10.0,
+            sigma2: 1.0,
+            proposal_std: 0.3,
+            bias_prior_tau2: 2.0,
+            bias_proposal_std: 0.15,
+            bias_prior_logit: 0.0,
         });
 
         assert_eq!(result2.rankings.len(), 3);
@@ -158,6 +176,12 @@ mod tests {
             top_k: 0,
             warm_start: Some(vec![1.0, 1.0]), // Wrong length: 2 instead of 3
             regularization_strength: 0.01,
+            prior_tau2: 10.0,
+            sigma2: 1.0,
+            proposal_std: 0.3,
+            bias_prior_tau2: 2.0,
+            bias_proposal_std: 0.15,
+            bias_prior_logit: 0.0,
         });
     }
 
@@ -180,6 +204,12 @@ mod tests {
             top_k: 2,
             warm_start: None,
             regularization_strength: 0.01,
+            prior_tau2: 10.0,
+            sigma2: 1.0,
+            proposal_std: 0.3,
+            bias_prior_tau2: 2.0,
+            bias_proposal_std: 0.15,
+            bias_prior_logit: 0.0,
         });
 
         assert!(result.top_k_probs.is_some());
@@ -203,6 +233,12 @@ mod tests {
             top_k: 0,
             warm_start: None,
             regularization_strength: 0.01,
+            prior_tau2: 10.0,
+            sigma2: 1.0,
+            proposal_std: 0.3,
+            bias_prior_tau2: 2.0,
+            bias_proposal_std: 0.15,
+            bias_prior_logit: 0.0,
         });
 
         // All ranking items should use our IDs
@@ -227,6 +263,12 @@ mod tests {
             top_k: 0,
             warm_start: None,
             regularization_strength: 0.01,
+            prior_tau2: 10.0,
+            sigma2: 1.0,
+            proposal_std: 0.3,
+            bias_prior_tau2: 2.0,
+            bias_proposal_std: 0.15,
+            bias_prior_logit: 0.0,
         });
     }
 
@@ -242,6 +284,12 @@ mod tests {
             top_k: 0,
             warm_start: None,
             regularization_strength: 0.01,
+            prior_tau2: 10.0,
+            sigma2: 1.0,
+            proposal_std: 0.3,
+            bias_prior_tau2: 2.0,
+            bias_proposal_std: 0.15,
+            bias_prior_logit: 0.0,
         });
     }
 
@@ -323,6 +371,12 @@ mod tests {
                 top_k: 0,
                 warm_start: None,
                 regularization_strength: 0.01,
+                prior_tau2: 10.0,
+                sigma2: 1.0,
+                proposal_std: 0.3,
+                bias_prior_tau2: 2.0,
+                bias_proposal_std: 0.15,
+                bias_prior_logit: 0.0,
             });
 
             let id_map = IdMap::from_ids(&item_ids);
@@ -338,6 +392,12 @@ mod tests {
                 top_k: 0,
                 warm_start: Some(bt_scores.clone()),
                 regularization_strength: 0.01,
+                prior_tau2: 10.0,
+                sigma2: 1.0,
+                proposal_std: 0.3,
+                bias_prior_tau2: 2.0,
+                bias_proposal_std: 0.15,
+                bias_prior_logit: 0.0,
             });
 
             let warm0 = run_scoring(&item_ids, &comparisons, &ScoringOptions {
@@ -347,6 +407,12 @@ mod tests {
                 top_k: 0,
                 warm_start: Some(bt_scores),
                 regularization_strength: 0.01,
+                prior_tau2: 10.0,
+                sigma2: 1.0,
+                proposal_std: 0.3,
+                bias_prior_tau2: 2.0,
+                bias_proposal_std: 0.15,
+                bias_prior_logit: 0.0,
             });
 
             cold_rmses.push(log_rmse(&cold.rankings, &true_by_id));
