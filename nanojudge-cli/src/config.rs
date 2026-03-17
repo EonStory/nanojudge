@@ -19,6 +19,11 @@ pub struct NanojudgeConfig {
     pub presence_penalty: Option<f64>,
     pub top_p: Option<f64>,
     pub no_logprobs: Option<bool>,
+    pub narrow_win: Option<f64>,
+    pub analysis_length: Option<String>,
+    pub strategy: Option<String>,
+    pub top_k: Option<usize>,
+    pub retries: Option<usize>,
 }
 
 const DEFAULT_CONFIG_TEMPLATE: &str = "\
@@ -63,6 +68,25 @@ const DEFAULT_CONFIG_TEMPLATE: &str = "\
 # Required for endpoints that do not support logprobs (e.g. Gemini).
 # Produces discrete probabilities instead of continuous — may need more rounds.
 # no_logprobs = false
+
+# Win probability assigned to a \"narrow win\" verdict (B or D on the likert scale).
+# Must be > 0.5 and < 1.0. Default: 0.8. \"Clear win\" (A/E) is always 1.0/0.0.
+# narrow_win = 0.8
+
+# How much analysis the LLM should write before its verdict.
+# Examples: \"3 sentences\", \"1 paragraph\", \"5 sentences\".
+# analysis_length = \"2 paragraphs\"
+
+# Pairing strategy: \"balanced\" or \"top-heavy\".
+# Balanced gives equal attention to all items. Top-heavy focuses on contenders.
+# strategy = \"balanced\"
+
+# How many top positions to track for the top-heavy strategy.
+# Default: sqrt(n) * 3, clamped to n-1. Only used with strategy = \"top-heavy\".
+# top_k = 10
+
+# Max retries per comparison on HTTP errors. 0 = no retries. Default: 3.
+# retries = 3
 ";
 
 /// Returns the default config path.
