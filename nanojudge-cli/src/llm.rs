@@ -1,5 +1,5 @@
 /// OpenAI-compatible API client for pairwise comparisons.
-use crate::parse::{LogprobContent, ParseResult, parse_response};
+use crate::parse::{LogprobContent, ParseResult, parse_response, parse_response_text};
 use crate::prompt::build_prompt;
 use rand::Rng;
 use reqwest::Client;
@@ -18,6 +18,8 @@ pub struct LlmConfig {
     pub presence_penalty: Option<f64>,
     /// Top-p (nucleus sampling). Only sent if Some.
     pub top_p: Option<f64>,
+    /// When true, skip logprob requests and parse verdicts from response text.
+    pub no_logprobs: bool,
 }
 
 #[derive(Serialize)]
@@ -32,15 +34,19 @@ struct ChatCompletionRequest {
     messages: Vec<ChatMessage>,
     temperature: f64,
     max_tokens: u32,
-    logprobs: bool,
-    top_logprobs: u8,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    logprobs: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    top_logprobs: Option<u8>,
     #[serde(skip_serializing_if = "Option::is_none")]
     presence_penalty: Option<f64>,
     #[serde(skip_serializing_if = "Option::is_none")]
     top_p: Option<f64>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
     stop: Vec<&'static str>,
     /// vLLM extension: include the stop string in the output text.
-    include_stop_str_in_output: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    include_stop_str_in_output: Option<bool>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -112,14 +118,16 @@ pub async fn send_comparison_request(
         }],
         temperature: jittered_temperature(config.temperature, config.temperature_jitter),
         max_tokens: 8000,
-        logprobs: true,
-        top_logprobs: 10,
+        logprobs: if config.no_logprobs { None } else { Some(true) },
+        top_logprobs: if config.no_logprobs { None } else { Some(10) },
         presence_penalty: config.presence_penalty,
         top_p: config.top_p,
-        stop: vec![
-            "Verdict A:", "Verdict B:", "Verdict C:", "Verdict D:", "Verdict E:",
-        ],
-        include_stop_str_in_output: true,
+        stop: if config.no_logprobs {
+            vec![]
+        } else {
+            vec!["Verdict A:", "Verdict B:", "Verdict C:", "Verdict D:", "Verdict E:"]
+        },
+        include_stop_str_in_output: if config.no_logprobs { None } else { Some(true) },
     };
 
     let url = format!("{}/v1/chat/completions", config.endpoint.trim_end_matches('/'));
@@ -149,12 +157,22 @@ pub async fn send_comparison_request(
         .ok_or("No choices in LLM response")?;
 
     let content = choice.message.content.unwrap_or_default();
-    let logprobs = choice
-        .logprobs
-        .and_then(|lp| lp.content)
-        .unwrap_or_default();
 
-    let parse_result = parse_response(&content, &logprobs, narrow_win);
+    let parse_result = if config.no_logprobs {
+        parse_response_text(&content, narrow_win)
+    } else {
+        let logprobs = choice
+            .logprobs
+            .and_then(|lp| lp.content)
+            .unwrap_or_default();
+
+        if logprobs.is_empty() {
+            crate::bail("Endpoint returned no logprobs. If your endpoint does not support logprobs, use --no-logprobs.");
+        }
+
+        parse_response(&content, &logprobs, narrow_win)
+    };
+
     Ok((parse_result, content, data.usage))
 }
 

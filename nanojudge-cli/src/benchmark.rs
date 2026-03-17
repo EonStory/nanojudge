@@ -50,6 +50,7 @@ pub async fn run_benchmark(
     top_p: Option<f64>,
     narrow_win: f64,
     template: &str,
+    no_logprobs: bool,
 ) {
     let questions: Vec<BenchmarkQuestion> = serde_json::from_str(BENCHMARK_QUESTIONS)
         .unwrap_or_else(|e| bail(format!("Failed to parse embedded benchmark questions: {e}")));
@@ -84,6 +85,7 @@ pub async fn run_benchmark(
         temperature_jitter,
         presence_penalty,
         top_p,
+        no_logprobs,
     });
 
     let client = Client::new();

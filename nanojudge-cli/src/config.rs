@@ -18,6 +18,7 @@ pub struct NanojudgeConfig {
     pub temperature_jitter: Option<f64>,
     pub presence_penalty: Option<f64>,
     pub top_p: Option<f64>,
+    pub no_logprobs: Option<bool>,
 }
 
 const DEFAULT_CONFIG_TEMPLATE: &str = "\
@@ -57,6 +58,11 @@ const DEFAULT_CONFIG_TEMPLATE: &str = "\
 # The template must contain these variables: $criterion, $option1, $option2, $length
 # If not set, the built-in default prompt is used.
 # prompt_template = \"/path/to/my-prompt.txt\"
+
+# Disable logprob extraction and use text-based verdict parsing.
+# Required for endpoints that do not support logprobs (e.g. Gemini).
+# Produces discrete probabilities instead of continuous — may need more rounds.
+# no_logprobs = false
 ";
 
 /// Returns the default config path.

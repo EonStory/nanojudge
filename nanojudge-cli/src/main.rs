@@ -92,6 +92,11 @@ struct BenchmarkArgs {
     #[arg(long)]
     prompt_template: Option<PathBuf>,
 
+    /// Disable logprob extraction and use text-based verdict parsing.
+    /// Required for endpoints that do not support logprobs.
+    #[arg(long)]
+    no_logprobs: bool,
+
     /// Path to config file (default: ~/.config/nanojudge/config.toml)
     #[arg(long)]
     config: Option<PathBuf>,
@@ -197,6 +202,11 @@ struct RankArgs {
     /// The template must contain: $criterion, $option1, $option2, $length
     #[arg(long)]
     prompt_template: Option<PathBuf>,
+
+    /// Disable logprob extraction and use text-based verdict parsing.
+    /// Required for endpoints that do not support logprobs.
+    #[arg(long)]
+    no_logprobs: bool,
 }
 
 const TITLE_MAX_LEN: usize = 20;
@@ -390,8 +400,14 @@ async fn run_benchmark_cmd(args: BenchmarkArgs) {
     let api_key = args.api_key.clone()
         .or_else(|| std::env::var("OPENAI_API_KEY").ok());
 
+    let no_logprobs = args.no_logprobs || cfg.no_logprobs.unwrap_or(false);
+
     if args.num_pairs == 0 {
         bail("--num-pairs must be at least 1");
+    }
+
+    if no_logprobs {
+        eprintln!("Warning: Running without logprobs. Requires more comparisons to reach equivalent accuracy as when using logprobs.");
     }
 
     benchmark::run_benchmark(
@@ -406,6 +422,7 @@ async fn run_benchmark_cmd(args: BenchmarkArgs) {
         top_p,
         narrow_win,
         &template,
+        no_logprobs,
     ).await;
 }
 
@@ -463,6 +480,11 @@ async fn run_rank(args: RankArgs) {
     let presence_penalty = args.presence_penalty.or(cfg.presence_penalty);
     let top_p = args.top_p.or(cfg.top_p);
     let analysis_length = args.analysis_length.clone().unwrap_or_else(|| DEFAULT_ANALYSIS_LENGTH.to_string());
+    let no_logprobs = args.no_logprobs || cfg.no_logprobs.unwrap_or(false);
+
+    if no_logprobs {
+        eprintln!("Warning: Running without logprobs. Requires more comparisons to reach equivalent accuracy as when using logprobs.");
+    }
 
     let llm_config = Arc::new(LlmConfig {
         endpoint: endpoint.clone(),
@@ -472,6 +494,7 @@ async fn run_rank(args: RankArgs) {
         temperature_jitter,
         presence_penalty,
         top_p,
+        no_logprobs,
     });
 
     let prompt_template = Arc::new(prompt_template);

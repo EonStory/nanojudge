@@ -1,4 +1,8 @@
-/// Logprob extraction for likert verdicts (logprobs only, no text fallback).
+/// Verdict extraction for pairwise comparisons.
+///
+/// Two separate parsing modes:
+/// - Logprob mode: extracts continuous probabilities from token logprobs.
+/// - Text mode (--no-logprobs): extracts discrete verdict letter from response text.
 use serde::Deserialize;
 
 /// Default narrow-win probability (B and D on the likert scale).
@@ -29,7 +33,7 @@ pub struct LogprobContent {
 
 /// Result of parsing a comparison response.
 pub struct ParseResult {
-    /// P(item1 wins), from logprobs. None if logprob extraction failed.
+    /// P(item1 wins), 0.0 to 1.0. None if extraction failed.
     pub item1_win_probability: Option<f64>,
 }
 
@@ -135,6 +139,38 @@ pub fn parse_response(_text: &str, logprobs: &[LogprobContent], narrow_win: f64)
 
     ParseResult {
         item1_win_probability: expected_p1,
+    }
+}
+
+/// Parse a verdict letter from response text (for --no-logprobs mode).
+///
+/// Finds the last "Verdict [A-E]" in the text and maps the letter to a
+/// win probability using the likert scale. Uses the last occurrence to
+/// handle cases where "verdict" appears in the analysis before the final verdict.
+pub fn parse_response_text(text: &str, narrow_win: f64) -> ParseResult {
+    let mapping = likert_mapping(narrow_win);
+    let lower = text.to_lowercase();
+    let mut result = None;
+    let mut search_start = 0;
+
+    while let Some(offset) = lower[search_start..].find("verdict") {
+        let after_verdict = search_start + offset + 7; // len("verdict")
+        for c in lower[after_verdict..].chars() {
+            match c {
+                ' ' | '\t' | '\n' | '\r' | ':' => continue,
+                _ => {
+                    if let Some(idx) = letter_to_index(c) {
+                        result = Some(mapping[idx]);
+                    }
+                    break;
+                }
+            }
+        }
+        search_start = after_verdict;
+    }
+
+    ParseResult {
+        item1_win_probability: result,
     }
 }
 
@@ -249,5 +285,80 @@ mod tests {
         let text = "Analysis.\n\nVerdict:\nD: Option 2 narrowly wins";
         let result = parse_response(text, &[], 0.7);
         assert!(result.item1_win_probability.is_none());
+    }
+
+    // --- Text-based parsing tests (--no-logprobs mode) ---
+
+    #[test]
+    fn test_text_parse_verdict_b() {
+        let text = "Some analysis.\n\nVerdict B: Option 1 narrowly wins";
+        let result = parse_response_text(text, DEFAULT_NARROW_WIN);
+        assert_eq!(result.item1_win_probability, Some(0.8));
+    }
+
+    #[test]
+    fn test_text_parse_verdict_a() {
+        let text = "Analysis here.\n\nVerdict A: Option 1 clearly wins";
+        let result = parse_response_text(text, DEFAULT_NARROW_WIN);
+        assert_eq!(result.item1_win_probability, Some(1.0));
+    }
+
+    #[test]
+    fn test_text_parse_verdict_e() {
+        let text = "Analysis here.\n\nVerdict E: Option 2 clearly wins";
+        let result = parse_response_text(text, DEFAULT_NARROW_WIN);
+        assert_eq!(result.item1_win_probability, Some(0.0));
+    }
+
+    #[test]
+    fn test_text_parse_verdict_c_draw() {
+        let text = "Analysis here.\n\nVerdict C: Draw";
+        let result = parse_response_text(text, DEFAULT_NARROW_WIN);
+        assert_eq!(result.item1_win_probability, Some(0.5));
+    }
+
+    #[test]
+    fn test_text_parse_verdict_d_with_custom_narrow_win() {
+        let text = "Analysis.\n\nVerdict D: Option 2 narrowly wins";
+        let result = parse_response_text(text, 0.7);
+        let p = result.item1_win_probability.unwrap();
+        assert!((p - 0.3).abs() < 1e-10, "expected ~0.3, got {p}"); // 1.0 - 0.7
+    }
+
+    #[test]
+    fn test_text_parse_verdict_with_colon_separator() {
+        let text = "Analysis.\n\nVerdict: B: Option 1 narrowly wins";
+        let result = parse_response_text(text, DEFAULT_NARROW_WIN);
+        assert_eq!(result.item1_win_probability, Some(0.8));
+    }
+
+    #[test]
+    fn test_text_parse_uses_last_verdict() {
+        // "verdict" appears in the analysis, but we want the final one
+        let text = "The verdict on flavor is mixed.\n\nVerdict D: Option 2 narrowly wins";
+        let result = parse_response_text(text, DEFAULT_NARROW_WIN);
+        let p = result.item1_win_probability.unwrap();
+        assert!((p - 0.2).abs() < 1e-10, "expected ~0.2, got {p}");
+    }
+
+    #[test]
+    fn test_text_parse_no_verdict_returns_none() {
+        let text = "Some analysis without a final answer.";
+        let result = parse_response_text(text, DEFAULT_NARROW_WIN);
+        assert!(result.item1_win_probability.is_none());
+    }
+
+    #[test]
+    fn test_text_parse_case_insensitive() {
+        let text = "Analysis.\n\nVERDICT B: Option 1 narrowly wins";
+        let result = parse_response_text(text, DEFAULT_NARROW_WIN);
+        assert_eq!(result.item1_win_probability, Some(0.8));
+    }
+
+    #[test]
+    fn test_text_parse_lowercase_verdict_letter() {
+        let text = "Analysis.\n\nVerdict b: Option 1 narrowly wins";
+        let result = parse_response_text(text, DEFAULT_NARROW_WIN);
+        assert_eq!(result.item1_win_probability, Some(0.8));
     }
 }
