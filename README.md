@@ -150,6 +150,10 @@ Instead, the main LLM can act as the orchestrator: it fetches the candidates, pa
 
 Every time an AI agent makes a decision, a travel app recommends an itinerary, or a feed ranks content, it is solving a subjective ranking problem. Nanojudge makes that universal process mathematically explicit and can scale to hundreds of thousands of options without running into context length limits.
 
+## Prior work
+
+Qin et al. (2023) showed that pairwise prompting significantly outperforms pointwise and listwise approaches for LLM-based ranking. [Large Language Models are Effective Text Rankers with Pairwise Ranking Prompting](https://arxiv.org/abs/2306.17563)
+
 ## License
 
 MIT
