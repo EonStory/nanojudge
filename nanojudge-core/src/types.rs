@@ -1,5 +1,19 @@
 use std::collections::HashMap;
 
+/// Deterministic FNV-1a hash. Same input → same u64, always.
+///
+/// Rust's `DefaultHasher` (SipHash) is randomized per process to prevent HashDoS,
+/// which means it produces different hashes across runs. We need stable hashes for
+/// judge identity (warm start state, saved comparisons), so we use FNV-1a instead.
+pub fn stable_hash(input: &str) -> u64 {
+    let mut hash: u64 = 0xcbf29ce484222325; // FNV offset basis
+    for byte in input.as_bytes() {
+        hash ^= *byte as u64;
+        hash = hash.wrapping_mul(0x100000001b3); // FNV prime
+    }
+    hash
+}
+
 /// Input format for a single pairwise comparison.
 ///
 /// Items are identified by caller-provided `i64` IDs.
@@ -13,6 +27,47 @@ pub struct ComparisonInput {
     /// P(item1 wins) from logprob extraction, 0.0 to 1.0.
     /// Caller is responsible for filtering out failed comparisons before passing data in.
     pub item1_win_probability: f64,
+    /// Hash of endpoint+model identifying which judge produced this comparison.
+    pub judge_id: u64,
+}
+
+/// Information about the judge panel passed to the scoring engine.
+#[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct JudgeInfo {
+    /// The set of judge IDs present in this tournament.
+    /// Order determines the internal index used for parameter arrays.
+    pub judge_ids: Vec<u64>,
+    /// Whether judges provide logprobs (enables decisiveness estimation).
+    pub logprobs_mode: bool,
+}
+
+/// Per-judge analytics from MCMC estimation.
+#[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct JudgeAnalytics {
+    pub judge_id: u64,
+    /// Positional bias in probability space. 0.5 = no bias, >0.5 = favors first item.
+    pub positional_bias: f64,
+    pub positional_bias_ci: (f64, f64),
+    /// Decisiveness relative to panel average. 1.0 = average, >1 = more decisive, <1 = more hesitant.
+    /// None in no-logprobs mode.
+    pub decisiveness: Option<f64>,
+    pub decisiveness_ci: Option<(f64, f64)>,
+    /// Number of comparisons this judge contributed.
+    pub num_comparisons: usize,
+}
+
+/// Warm start state for multi-judge MCMC.
+#[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct WarmStartState {
+    /// Item strengths (exp of log-strengths), same order as item_ids.
+    pub item_strengths: Vec<f64>,
+    /// Per-judge positional bias in logit space, keyed by judge_id hash.
+    pub judge_biases: Vec<(u64, f64)>,
+    /// Per-judge log-decisiveness, keyed by judge_id hash. Empty in no-logprobs mode.
+    pub judge_log_decisiveness: Vec<(u64, f64)>,
 }
 
 /// A ranked item with point estimate and confidence interval bounds.
@@ -39,9 +94,8 @@ pub struct ScoringOptions {
     pub confidence_level: f64,
     /// Compute P(top K) probabilities. 0 = skip.
     pub top_k: usize,
-    /// Previous lambda state for warm-starting. `None` = cold start.
-    /// Must be in the same order as `item_ids` passed to `run_scoring()`.
-    pub warm_start: Option<Vec<f64>>,
+    /// Previous warm start state. `None` = cold start.
+    pub warm_start: Option<WarmStartState>,
     /// Ghost player regularization strength (e.g. 0.01).
     pub regularization_strength: f64,
     /// Prior variance on log-strengths. Default: 10.0.
@@ -56,6 +110,13 @@ pub struct ScoringOptions {
     pub bias_proposal_std: f64,
     /// Prior mean for positional bias in logit space. Default: 0.0 (= 0.5 probability = no bias).
     pub bias_prior_logit: f64,
+    /// Prior variance on decisiveness in log space. Default: 1.0.
+    /// Controls how far D_k can drift from 1.0 before the prior pulls it back.
+    /// Ignored in no-logprobs mode.
+    pub decisiveness_prior_tau2: f64,
+    /// MH proposal step size for decisiveness (log space). Default: 0.1.
+    /// Ignored in no-logprobs mode.
+    pub decisiveness_proposal_std: f64,
 }
 
 /// Result from `run_scoring()`.
@@ -68,21 +129,20 @@ pub struct ScoringResult {
     pub top_k_probs: Option<Vec<f64>>,
     /// Mean scores per item, in the same order as input `item_ids`. `None` if `top_k == 0`.
     pub sample_means: Option<Vec<f64>>,
-    /// Lambda state for warm-starting next round, in the same order as input `item_ids`.
-    pub state: Vec<f64>,
+    /// Warm start state for next round.
+    pub warm_start_state: WarmStartState,
     /// Number of post-burn-in samples (for DB storage).
     pub sample_size: usize,
-    /// Estimated positional bias in probability space (0.5 = no bias, >0.5 = item1 favored).
-    pub positional_bias: f64,
-    /// Confidence interval for positional bias in probability space.
-    pub positional_bias_confidence_interval: (f64, f64),
+    /// Per-judge analytics. One entry per judge, same order as `JudgeInfo.judge_ids`.
+    pub judge_analytics: Vec<JudgeAnalytics>,
 }
 
 /// A pairing: two item IDs to be compared.
 pub type Pair = (i64, i64);
 
 /// Internal indexed comparison (usize indices, not caller IDs).
-pub(crate) type IndexedComparison = (usize, usize, f64);
+/// (item1_idx, item2_idx, probability, judge_internal_idx)
+pub(crate) type IndexedComparison = (usize, usize, f64, usize);
 
 /// Internal indexed pair (usize indices, not caller IDs).
 pub(crate) type IndexedPair = (usize, usize);
@@ -119,9 +179,11 @@ impl IdMap {
         self.ids[idx]
     }
 
-    pub fn convert_comparisons(&self, comparisons: &[ComparisonInput]) -> Vec<IndexedComparison> {
+    pub fn convert_comparisons(&self, comparisons: &[ComparisonInput], judge_id_to_idx: &HashMap<u64, usize>) -> Vec<IndexedComparison> {
         comparisons.iter().map(|c| {
-            (self.to_idx(c.item1), self.to_idx(c.item2), c.item1_win_probability)
+            let judge_idx = *judge_id_to_idx.get(&c.judge_id)
+                .unwrap_or_else(|| panic!("Unknown judge_id: {}", c.judge_id));
+            (self.to_idx(c.item1), self.to_idx(c.item2), c.item1_win_probability, judge_idx)
         }).collect()
     }
 }

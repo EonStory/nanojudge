@@ -16,38 +16,59 @@ cargo install --path nanojudge-cli
 
 ## Usage
 
+First, create a config file with your judge panel:
+
 ```bash
-# Rank fruits by healthiness using a local vLLM server
+nanojudge init   # creates ~/.config/nanojudge/config.toml
+```
+
+Example config with multiple judges:
+
+```toml
+rounds = 10
+logprobs = true
+
+[[judge]]
+endpoint = "http://localhost:8000"
+model = "Qwen/Qwen3-4B-Instruct-2507"
+weight = 2
+temperature = 0.8
+
+[[judge]]
+endpoint = "https://api.openai.com/v1"
+model = "gpt-4o"
+api_key_env = "OPENAI_API_KEY"
+weight = 3
+temperature = 1.0
+concurrency = 5
+```
+
+Each `[[judge]]` block defines a judge in the panel. Comparisons are distributed across judges according to their `weight`. All judges share the same `logprobs` mode.
+
+Then run:
+
+```bash
+# Rank items from a file (one per line)
 nanojudge rank \
   --criterion "Which fruit is healthier?" \
-  --item "Apple" --item "Banana" --item "Mango" --item "Strawberry" \
-  --endpoint http://localhost:8000 \
-  --model model-id \
-  --rounds 10
+  --items fruits.txt
 
-# Or read items from a file (one per line)
+# Inline items
 nanojudge rank \
-  --criterion "Which movie is more rewatchable?" \
-  --items movies.txt \
-  --endpoint http://localhost:8000 \
-  --model model-id \
-  --rounds 20 --concurrency 64
+  --criterion "Which fruit is healthier?" \
+  --item "Apple" --item "Banana" --item "Mango" --item "Strawberry"
 
-# Or point at a directory — each text file becomes one item
+# Point at a directory — each text file becomes one item
 nanojudge rank \
   --criterion "Which essay is more persuasive?" \
-  --items essays/ \
-  --endpoint http://localhost:8000 \
-  --model model-id \
-  --rounds 15
+  --items essays/
 
 # Pipe items from stdin
 cat papers.txt | nanojudge rank \
-  --criterion "Which paper is more impactful?" \
-  --endpoint http://localhost:8000 \
-  --model model-id \
-  --rounds 15
+  --criterion "Which paper is more impactful?"
 ```
+
+CLI flags like `--rounds` override config file values.
 
 Output:
 
@@ -87,23 +108,32 @@ Each line is a JSON object with `round`, `item1`, `item2`, `probability`, and `r
 
 ## Config file
 
-Save common settings so you don't repeat them every time:
+The config file lives at `~/.config/nanojudge/config.toml`. Run `nanojudge init` to create one with defaults and documentation for all available options.
 
-```bash
-nanojudge init   # creates ~/.config/nanojudge/config.toml
-```
+Key settings:
 
-Then set your endpoint, model, and preferred concurrency in the config file. After that you only need:
+| Setting | Description |
+|---|---|
+| `rounds` | Number of comparison rounds |
+| `logprobs` | `true` to extract logprobs for continuous confidence (requires endpoint support, e.g. vLLM). `false` for text-based verdict parsing (works everywhere, but needs more rounds). |
+| `strategy` | `"balanced"` (default) or `"top-heavy"` |
 
-```bash
-nanojudge rank --criterion "Which is better?" --items list.txt
-```
+Per-judge settings (in `[[judge]]` blocks):
 
-CLI flags always override config file values.
+| Setting | Required | Description |
+|---|---|---|
+| `endpoint` | Yes | OpenAI-compatible API base URL |
+| `model` | Yes | Model ID |
+| `temperature` | Yes | Sampling temperature |
+| `weight` | No | Relative weight for pair assignment (default: 1) |
+| `concurrency` | No | Max concurrent requests (default: 16) |
+| `max_tokens` | No | Max tokens in response (default: 2048) |
+| `api_key_env` | No | Environment variable containing the API key |
+| `reasoning_effort` | No | Controls model reasoning mode (e.g. `"none"` to disable Qwen 3.5 thinking) |
 
 ## How it works
 
-1. **Pairwise comparisons** — each round, the engine picks which pairs to compare. An LLM judges each pair, and token logprobs give a continuous confidence (not just binary win/loss).
+1. **Pairwise comparisons** — each round, the engine picks which pairs to compare. Each judge in the panel evaluates its assigned pairs. With `logprobs = true`, token logprobs give continuous confidence. With `logprobs = false`, verdicts are parsed from the response text.
 
 2. **Bradley-Terry scoring** — all pairwise probabilities are combined into global scores using Bayesian MCMC inference (Gaussian Bradley-Terry with Metropolis-Hastings sampling). This produces point estimates plus confidence intervals.
 

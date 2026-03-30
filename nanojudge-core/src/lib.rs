@@ -9,14 +9,20 @@
 /// # Quick start
 ///
 /// ```rust
-/// use nanojudge_core::{run_scoring, ComparisonInput, ScoringOptions};
+/// use nanojudge_core::{run_scoring, ComparisonInput, JudgeInfo, ScoringOptions, stable_hash};
 ///
 /// let item_ids = vec![100, 200, 300]; // your IDs — any i64 values
+/// let judge_id = stable_hash("http://localhost:8000my-model");
 ///
 /// let comparisons = vec![
-///     ComparisonInput { item1: 100, item2: 200, item1_win_probability: 0.8 },
-///     ComparisonInput { item1: 200, item2: 300, item1_win_probability: 0.7 },
+///     ComparisonInput { item1: 100, item2: 200, item1_win_probability: 0.8, judge_id },
+///     ComparisonInput { item1: 200, item2: 300, item1_win_probability: 0.7, judge_id },
 /// ];
+///
+/// let judge_info = JudgeInfo {
+///     judge_ids: vec![judge_id],
+///     logprobs_mode: true,
+/// };
 ///
 /// let result = run_scoring(&item_ids, &comparisons, &ScoringOptions {
 ///     iterations: 200,
@@ -31,7 +37,9 @@
 ///     bias_prior_tau2: 2.0,
 ///     bias_proposal_std: 0.15,
 ///     bias_prior_logit: 0.0,
-/// });
+///     decisiveness_prior_tau2: 1.0,
+///     decisiveness_proposal_std: 0.1,
+/// }, &judge_info);
 ///
 /// for r in &result.rankings {
 ///     println!("Item {}: {:.4} [{:.4}, {:.4}]", r.item, r.score, r.lower_bound, r.upper_bound);
@@ -56,4 +64,7 @@ pub use pairing::{
     get_effective_strategy, Strategy,
 };
 pub use scoring::run_scoring;
-pub use types::{ComparisonInput, Pair, RankedItem, ScoringOptions, ScoringResult};
+pub use types::{
+    stable_hash, ComparisonInput, JudgeAnalytics, JudgeInfo, Pair, RankedItem, ScoringOptions,
+    ScoringResult, WarmStartState,
+};

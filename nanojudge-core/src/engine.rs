@@ -123,13 +123,16 @@ impl RankingEngine {
     }
 
     /// Update current rating estimates using Bradley-Terry MLE.
+    /// BT MLE is judge-agnostic — it just wants (item1, item2, probability) triples.
     pub fn update_current_ratings(&mut self) {
         if self.completed_comparisons.is_empty() {
             return;
         }
 
         let num_items = self.id_map.len();
-        let indexed = self.id_map.convert_comparisons(&self.completed_comparisons);
+        let indexed: Vec<(usize, usize, f64, usize)> = self.completed_comparisons.iter().map(|c| {
+            (self.id_map.to_idx(c.item1), self.id_map.to_idx(c.item2), c.item1_win_probability, 0)
+        }).collect();
         let mut bt = BradleyTerry::new(num_items, &indexed, 0.01);
         bt.calculate_scores(30);
 
@@ -218,7 +221,7 @@ mod tests {
     }
 
     fn make_input(id1: i64, id2: i64, prob: f64) -> ComparisonInput {
-        ComparisonInput { item1: id1, item2: id2, item1_win_probability: prob }
+        ComparisonInput { item1: id1, item2: id2, item1_win_probability: prob, judge_id: 0 }
     }
 
     #[test]

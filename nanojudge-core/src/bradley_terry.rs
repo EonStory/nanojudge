@@ -33,7 +33,7 @@ impl BradleyTerry {
         // Build sparse wins table
         let mut wins_table: Vec<HashMap<usize, f64>> = (0..total).map(|_| HashMap::new()).collect();
 
-        for &(i1, i2, prob) in results {
+        for &(i1, i2, prob, _judge_idx) in results {
             assert!(i1 < num_items, "item1 index {} out of range (num_items = {})", i1, num_items);
             assert!(i2 < num_items, "item2 index {} out of range (num_items = {})", i2, num_items);
 
@@ -181,7 +181,7 @@ mod tests {
     use super::*;
 
     fn make_comp(i1: usize, i2: usize, prob: f64) -> IndexedComparison {
-        (i1, i2, prob)
+        (i1, i2, prob, 0)
     }
 
     #[test]

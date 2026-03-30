@@ -18,14 +18,23 @@ pub struct LlmConfig {
     pub presence_penalty: Option<f64>,
     /// Top-p (nucleus sampling). Only sent if Some.
     pub top_p: Option<f64>,
-    /// When true, skip logprob requests and parse verdicts from response text.
-    pub no_logprobs: bool,
+    /// When true, extract logprobs for continuous win probabilities.
+    pub logprobs: bool,
+    /// Maximum tokens in the LLM response.
+    pub max_tokens: u32,
+    /// OpenRouter extension: reasoning effort level (e.g. "none" to disable Qwen thinking).
+    pub reasoning_effort: Option<String>,
 }
 
 #[derive(Serialize)]
 struct ChatMessage {
     role: &'static str,
     content: String,
+}
+
+#[derive(Serialize)]
+struct ReasoningConfig {
+    effort: String,
 }
 
 #[derive(Serialize)]
@@ -47,6 +56,10 @@ struct ChatCompletionRequest {
     /// vLLM extension: include the stop string in the output text.
     #[serde(skip_serializing_if = "Option::is_none")]
     include_stop_str_in_output: Option<bool>,
+    /// OpenRouter extension: controls reasoning/thinking mode.
+    /// Used to disable chain-of-thought for models like Qwen.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    reasoning: Option<ReasoningConfig>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -65,6 +78,7 @@ pub struct Usage {
 struct Choice {
     message: MessageContent,
     logprobs: Option<ChoiceLogprobs>,
+    finish_reason: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -84,6 +98,9 @@ pub struct ComparisonResult {
     pub parse_result: ParseResult,
     pub response_text: String,
     pub retries_used: usize,
+    pub usage: Option<Usage>,
+    /// True if the response was truncated due to hitting max_tokens.
+    pub hit_max_tokens: bool,
 }
 
 /// Apply normal jitter to temperature: N(1.0, jitter_std) clamped to [0.8, 1.2].
@@ -109,7 +126,7 @@ pub async fn send_comparison_request(
     config: &LlmConfig,
     prompt: &str,
     narrow_win: f64,
-) -> Result<(ParseResult, String, Option<Usage>), String> {
+) -> Result<(ParseResult, String, Option<Usage>, bool), String> {
     let request = ChatCompletionRequest {
         model: config.model.clone(),
         messages: vec![ChatMessage {
@@ -117,17 +134,20 @@ pub async fn send_comparison_request(
             content: prompt.to_string(),
         }],
         temperature: jittered_temperature(config.temperature, config.temperature_jitter),
-        max_tokens: 8000,
-        logprobs: if config.no_logprobs { None } else { Some(true) },
-        top_logprobs: if config.no_logprobs { None } else { Some(10) },
+        max_tokens: config.max_tokens,
+        logprobs: if config.logprobs { Some(true) } else { None },
+        top_logprobs: if config.logprobs { Some(10) } else { None },
         presence_penalty: config.presence_penalty,
         top_p: config.top_p,
-        stop: if config.no_logprobs {
-            vec![]
-        } else {
+        stop: if config.logprobs {
             vec!["Verdict A:", "Verdict B:", "Verdict C:", "Verdict D:", "Verdict E:"]
+        } else {
+            vec![]
         },
-        include_stop_str_in_output: if config.no_logprobs { None } else { Some(true) },
+        include_stop_str_in_output: if config.logprobs { Some(true) } else { None },
+        reasoning: config.reasoning_effort.as_ref().map(|effort| ReasoningConfig {
+            effort: effort.clone(),
+        }),
     };
 
     let url = format!("{}/v1/chat/completions", config.endpoint.trim_end_matches('/'));
@@ -142,7 +162,7 @@ pub async fn send_comparison_request(
     if !resp.status().is_success() {
         let status = resp.status();
         let body = resp.text().await.unwrap_or_default();
-        return Err(format!("LLM API returned {status}: {}", &body[..body.len().min(200)]));
+        return Err(format!("LLM API returned {status}: {}", &body[..body.len().min(500)]));
     }
 
     let data: ChatCompletionResponse = resp
@@ -157,23 +177,24 @@ pub async fn send_comparison_request(
         .ok_or("No choices in LLM response")?;
 
     let content = choice.message.content.unwrap_or_default();
+    let hit_max_tokens = choice.finish_reason.as_deref() == Some("length");
 
-    let parse_result = if config.no_logprobs {
-        parse_response_text(&content, narrow_win)
-    } else {
+    let parse_result = if config.logprobs {
         let logprobs = choice
             .logprobs
             .and_then(|lp| lp.content)
             .unwrap_or_default();
 
         if logprobs.is_empty() {
-            crate::bail("Endpoint returned no logprobs. If your endpoint does not support logprobs, use --no-logprobs.");
+            crate::bail(format!("{} returned no logprobs. If your endpoint does not support logprobs, disable logprobs in your config.", config.model));
         }
 
         parse_response(&content, &logprobs, narrow_win)
+    } else {
+        parse_response_text(&content, narrow_win)
     };
 
-    Ok((parse_result, content, data.usage))
+    Ok((parse_result, content, data.usage, hit_max_tokens))
 }
 
 /// Call the LLM to compare two items, with retries on HTTP errors.
@@ -193,19 +214,22 @@ pub async fn compare_pair(
     analysis_length: &str,
     max_retries: usize,
     verbose: bool,
+    judge_name: &str,
 ) -> Result<ComparisonResult, String> {
     let prompt = build_prompt(template, criterion, item1_name, item2_name, analysis_length);
 
     let mut last_err = String::new();
     for attempt in 0..=max_retries {
         match send_comparison_request(client, config, &prompt, narrow_win).await {
-            Ok((parse_result, content, _usage)) => {
+            Ok((parse_result, content, usage, hit_max_tokens)) => {
                 return Ok(ComparisonResult {
                     item1_id,
                     item2_id,
                     parse_result,
                     response_text: content,
                     retries_used: attempt,
+                    usage,
+                    hit_max_tokens,
                 });
             }
             Err(e) => {
@@ -213,8 +237,8 @@ pub async fn compare_pair(
                 if attempt < max_retries {
                     if verbose {
                         eprintln!(
-                            "  Retry {}/{} for {} vs {}: {}",
-                            attempt + 1, max_retries, item1_name, item2_name, last_err
+                            "  Retry {}/{} for {} vs {} [{}]: {}",
+                            attempt + 1, max_retries, item1_name, item2_name, judge_name, last_err
                         );
                     }
                     tokio::time::sleep(std::time::Duration::from_secs(1)).await;

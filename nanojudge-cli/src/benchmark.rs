@@ -37,20 +37,14 @@ struct SingleResult {
     response_text: String,
 }
 
-/// Run the benchmark.
+/// Run the benchmark for a single judge.
 pub async fn run_benchmark(
-    endpoint: &str,
-    model: &str,
-    api_key: Option<String>,
+    llm_config: &LlmConfig,
+    display_name: &str,
     num_pairs: usize,
     concurrency: usize,
-    temperature: f64,
-    temperature_jitter: f64,
-    presence_penalty: Option<f64>,
-    top_p: Option<f64>,
     narrow_win: f64,
     template: &str,
-    no_logprobs: bool,
 ) {
     let questions: Vec<BenchmarkQuestion> = serde_json::from_str(BENCHMARK_QUESTIONS)
         .unwrap_or_else(|e| bail(format!("Failed to parse embedded benchmark questions: {e}")));
@@ -72,20 +66,22 @@ pub async fn run_benchmark(
 
     let total_comparisons = num_pairs * 2; // Each pair runs both directions
     eprintln!(
-        "Running benchmark: {} pairs x 2 directions = {} comparisons (concurrency: {})",
-        num_pairs, total_comparisons, concurrency
+        "Running benchmark for {}: {} pairs x 2 directions = {} comparisons (concurrency: {})",
+        display_name, num_pairs, total_comparisons, concurrency
     );
-    eprintln!("Endpoint: {} | Model: {}", endpoint, model);
+    eprintln!("Endpoint: {} | Model: {}", llm_config.endpoint, llm_config.model);
 
     let llm_config = Arc::new(LlmConfig {
-        endpoint: endpoint.to_string(),
-        model: model.to_string(),
-        api_key,
-        temperature,
-        temperature_jitter,
-        presence_penalty,
-        top_p,
-        no_logprobs,
+        endpoint: llm_config.endpoint.clone(),
+        model: llm_config.model.clone(),
+        api_key: llm_config.api_key.clone(),
+        temperature: llm_config.temperature,
+        temperature_jitter: llm_config.temperature_jitter,
+        presence_penalty: llm_config.presence_penalty,
+        top_p: llm_config.top_p,
+        logprobs: llm_config.logprobs,
+        max_tokens: llm_config.max_tokens,
+        reasoning_effort: llm_config.reasoning_effort.clone(),
     });
 
     let client = Client::new();
@@ -128,7 +124,7 @@ pub async fn run_benchmark(
             let latency = start.elapsed().as_secs_f64();
 
             let single = match result {
-                Ok((parse_result, content, usage)) => {
+                Ok((parse_result, content, usage, _hit_max_tokens)) => {
                     let (prompt_tokens, completion_tokens) = match usage {
                         Some(u) => (u.prompt_tokens, u.completion_tokens),
                         None => (0, 0),
@@ -138,7 +134,7 @@ pub async fn run_benchmark(
                         prompt_tokens,
                         completion_tokens,
                         response_len_chars: content.len(),
-                        verdict_letter: parse_result.item1_win_probability.and_then(|p| {
+                        verdict_letter: parse_result.item1_win_probability.and_then(|p: f64| {
                             // Map probability back to verdict letter index
                             if (p - 1.0).abs() < 0.01 { Some(0) }      // A
                             else if (p - 0.8).abs() < 0.01 { Some(1) }  // B (approximate)
@@ -349,7 +345,7 @@ pub async fn run_benchmark(
 
     writeln!(file, "NanoJudge Benchmark Log").unwrap();
     writeln!(file, "Generated: {} UTC", timestamp.replace('_', " ")).unwrap();
-    writeln!(file, "Endpoint: {} | Model: {}", endpoint, model).unwrap();
+    writeln!(file, "Judge: {} | Endpoint: {} | Model: {}", display_name, llm_config.endpoint, llm_config.model).unwrap();
     writeln!(file, "Pairs: {} | Comparisons: {} | Wall time: {:.1}s", num_pairs, total_comparisons, wall_clock_secs).unwrap();
     writeln!(file, "Parse rate: {}/{} ({:.1}%)", parseable_count, non_http_count, parseable_count as f64 / non_http_count.max(1) as f64 * 100.0).unwrap();
     writeln!(file, "").unwrap();

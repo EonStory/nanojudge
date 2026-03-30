@@ -7,19 +7,32 @@ use std::path::{Path, PathBuf};
 
 use crate::bail;
 
-#[derive(Deserialize, Default)]
-pub struct NanojudgeConfig {
-    pub endpoint: Option<String>,
-    pub model: Option<String>,
-    pub rounds: Option<usize>,
+/// Per-judge configuration from a [[judge]] TOML block.
+#[derive(Deserialize, Clone, Debug)]
+pub struct JudgeConfig {
+    pub endpoint: String,
+    pub model: String,
     pub concurrency: Option<usize>,
-    pub prompt_template: Option<String>,
+    pub weight: Option<f64>,
     pub temperature: Option<f64>,
     pub temperature_jitter: Option<f64>,
     pub presence_penalty: Option<f64>,
     pub top_p: Option<f64>,
-    pub no_logprobs: Option<bool>,
     pub narrow_win: Option<f64>,
+    pub api_key_env: Option<String>,
+    pub max_tokens: Option<u32>,
+    /// OpenRouter extension: controls model reasoning/thinking mode.
+    /// Set to "none" to disable chain-of-thought for models like Qwen
+    /// that otherwise produce <think>...</think> blocks.
+    pub reasoning_effort: Option<String>,
+}
+
+#[derive(Deserialize, Default)]
+pub struct NanojudgeConfig {
+    pub rounds: Option<usize>,
+    pub concurrency: Option<usize>,
+    pub prompt_template: Option<String>,
+    pub logprobs: Option<bool>,
     pub analysis_length: Option<String>,
     pub strategy: Option<String>,
     pub top_k: Option<usize>,
@@ -36,54 +49,29 @@ pub struct NanojudgeConfig {
     pub proposal_std: Option<f64>,
     pub bias_prior_tau2: Option<f64>,
     pub bias_proposal_std: Option<f64>,
+    /// Judge panel configuration. At least one [[judge]] block is required.
+    pub judge: Option<Vec<JudgeConfig>>,
 }
 
 const DEFAULT_CONFIG_TEMPLATE: &str = "\
 # nanojudge configuration
-# All values here can be overridden by CLI flags.
-
-# OpenAI-compatible API endpoint
-# endpoint = \"http://localhost:8000\"
-
-# Model ID
-# model = \"model-id\"
-
-# API key: use OPENAI_API_KEY env var or --api-key flag (not stored in config)
+# All values here can be overridden by CLI flags unless noted otherwise.
 
 # Number of comparison rounds
 # rounds = 10
 
-# Max concurrent LLM requests
-# concurrency = 32
-
-# LLM sampling temperature (required — each model needs a different value)
-# temperature = 0.7
-
-# Temperature jitter: standard deviation of N(1.0, jitter) multiplier.
-# 0.0 = no jitter (default). Adds randomness to temperature across calls.
-# temperature_jitter = 0.0
-
-# Presence penalty: penalizes repeated tokens. Range: -2.0 to 2.0.
-# Not sent to the API unless specified.
-# presence_penalty = 1.5
-
-# Top-p (nucleus sampling): only sample from tokens whose cumulative probability
-# exceeds this threshold. Range: 0.0 to 1.0. Not sent to the API unless specified.
-# top_p = 1.0
+# Default max concurrent LLM requests per judge (can be overridden per-judge)
+# concurrency = 16
 
 # Path to a custom prompt template file.
 # The template must contain these variables: $criterion, $option1, $option2, $length
 # If not set, the built-in default prompt is used.
 # prompt_template = \"/path/to/my-prompt.txt\"
 
-# Disable logprob extraction and use text-based verdict parsing.
-# Required for endpoints that do not support logprobs (e.g. Gemini).
-# Produces discrete probabilities instead of continuous — may need more rounds.
-# no_logprobs = false
-
-# Win probability assigned to a \"narrow win\" verdict (B or D on the likert scale).
-# Must be > 0.5 and < 1.0. Default: 0.8. \"Clear win\" (A/E) is always 1.0/0.0.
-# narrow_win = 0.8
+# Enable logprob extraction for continuous win probabilities.
+# Requires an endpoint that supports logprobs (e.g. vLLM, OpenAI direct).
+# When false, uses text-based verdict parsing (discrete) — may need more rounds.
+# logprobs = false
 
 # How much analysis the LLM should write before its verdict.
 # Examples: \"3 sentences\", \"1 paragraph\", \"5 sentences\".
@@ -99,6 +87,40 @@ const DEFAULT_CONFIG_TEMPLATE: &str = "\
 
 # Max retries per comparison on HTTP errors. 0 = no retries. Default: 3.
 # retries = 3
+
+# --- Judges ---
+# At least one [[judge]] block is required. Each judge needs endpoint, model,
+# and temperature. All other per-judge fields are optional.
+#
+# Per-judge fields:
+#   endpoint (required)    - OpenAI-compatible API base URL
+#   model (required)       - Model ID
+#   temperature (required) - LLM sampling temperature
+#   concurrency            - Max concurrent requests (default: global concurrency or 16)
+#   weight                 - Relative weight for pair assignment (default: 1)
+#   temperature_jitter     - Std dev of N(1.0, jitter) temperature multiplier (default: 0)
+#   presence_penalty       - Penalizes repeated tokens, range -2.0 to 2.0
+#   top_p                  - Nucleus sampling threshold, range 0.0 to 1.0
+#   narrow_win             - Win probability for narrow verdicts, > 0.5 and < 1.0 (default: 0.8)
+#   max_tokens             - Maximum tokens in LLM response (default: 2048, or average of specified judges)
+#   api_key_env            - Environment variable name containing the API key
+#   reasoning_effort       - OpenRouter: controls reasoning/thinking mode (e.g. \\\"none\\\" to disable Qwen thinking)
+
+[[judge]]
+endpoint = \"http://localhost:8000\"
+model = \"my-model\"
+temperature = 0.7
+# concurrency = 16
+# weight = 1
+# max_tokens = 2048
+
+# [[judge]]
+# endpoint = \"https://api.openai.com/v1\"
+# model = \"gpt-4o\"
+# api_key_env = \"OPENAI_API_KEY\"
+# concurrency = 5
+# weight = 3
+# temperature = 1.0
 
 # --- Scoring & MCMC hyperparameters ---
 # Most users should not need to change these.
@@ -197,21 +219,23 @@ mod tests {
     #[test]
     fn test_load_config_missing_file_returns_defaults() {
         let config = load_config(Path::new("/tmp/nanojudge-test-nonexistent/config.toml"));
-        assert!(config.endpoint.is_none());
-        assert!(config.model.is_none());
         assert!(config.rounds.is_none());
         assert!(config.concurrency.is_none());
-        assert!(config.temperature.is_none());
+        assert!(config.judge.is_none());
     }
 
     #[test]
-    fn test_load_config_parses_fields() {
+    fn test_load_config_parses_global_fields() {
         let mut tmpfile = tempfile::NamedTempFile::new().unwrap();
         write!(tmpfile, r#"
+rounds = 10
+concurrency = 16
+logprobs = false
+analysis_length = "3 sentences"
+
+[[judge]]
 endpoint = "http://localhost:8000"
 model = "qwen-4b"
-rounds = 10
-concurrency = 32
 temperature = 0.7
 temperature_jitter = 0.05
 presence_penalty = 1.5
@@ -219,36 +243,88 @@ top_p = 0.95
 "#).unwrap();
 
         let config = load_config(tmpfile.path());
-        assert_eq!(config.endpoint.unwrap(), "http://localhost:8000");
-        assert_eq!(config.model.unwrap(), "qwen-4b");
         assert_eq!(config.rounds.unwrap(), 10);
-        assert_eq!(config.concurrency.unwrap(), 32);
-        assert_eq!(config.temperature.unwrap(), 0.7);
-        assert_eq!(config.temperature_jitter.unwrap(), 0.05);
-        assert_eq!(config.presence_penalty.unwrap(), 1.5);
-        assert_eq!(config.top_p.unwrap(), 0.95);
+        assert_eq!(config.concurrency.unwrap(), 16);
+        assert_eq!(config.logprobs.unwrap(), false);
+        assert_eq!(config.analysis_length.as_deref().unwrap(), "3 sentences");
+        let judges = config.judge.unwrap();
+        assert_eq!(judges.len(), 1);
+        assert_eq!(judges[0].endpoint, "http://localhost:8000");
+        assert_eq!(judges[0].model, "qwen-4b");
+        assert_eq!(judges[0].temperature.unwrap(), 0.7);
+        assert_eq!(judges[0].temperature_jitter.unwrap(), 0.05);
+        assert_eq!(judges[0].presence_penalty.unwrap(), 1.5);
+        assert_eq!(judges[0].top_p.unwrap(), 0.95);
     }
 
     #[test]
     fn test_load_config_partial_fields() {
         let mut tmpfile = tempfile::NamedTempFile::new().unwrap();
         write!(tmpfile, r#"
-endpoint = "http://localhost:8000"
 rounds = 5
 "#).unwrap();
 
         let config = load_config(tmpfile.path());
-        assert_eq!(config.endpoint.unwrap(), "http://localhost:8000");
         assert_eq!(config.rounds.unwrap(), 5);
-        assert!(config.model.is_none());
-        assert!(config.temperature.is_none());
+        assert!(config.judge.is_none());
+        assert!(config.concurrency.is_none());
     }
 
     #[test]
     fn test_default_config_template_parses() {
-        // The default template is all comments, so it should parse to all-None
         let config: NanojudgeConfig = toml::from_str(DEFAULT_CONFIG_TEMPLATE).unwrap();
-        assert!(config.endpoint.is_none());
-        assert!(config.model.is_none());
+        // Template has one uncommented [[judge]] block
+        assert!(config.judge.is_some());
+        assert_eq!(config.judge.as_ref().unwrap().len(), 1);
+        assert!(config.rounds.is_none());
+    }
+
+    #[test]
+    fn test_parse_judge_blocks() {
+        let mut tmpfile = tempfile::NamedTempFile::new().unwrap();
+        write!(tmpfile, r#"
+rounds = 10
+
+[[judge]]
+endpoint = "http://localhost:8000"
+model = "qwen-32b"
+concurrency = 50
+weight = 5.0
+temperature = 0.6
+
+[[judge]]
+endpoint = "https://api.openai.com/v1"
+model = "gpt-4o"
+api_key_env = "OPENAI_API_KEY"
+concurrency = 5
+weight = 3.0
+temperature = 1.0
+"#).unwrap();
+
+        let config = load_config(tmpfile.path());
+        assert_eq!(config.rounds.unwrap(), 10);
+        let judges = config.judge.unwrap();
+        assert_eq!(judges.len(), 2);
+        assert_eq!(judges[0].endpoint, "http://localhost:8000");
+        assert_eq!(judges[0].model, "qwen-32b");
+        assert_eq!(judges[0].concurrency.unwrap(), 50);
+        assert_eq!(judges[0].weight.unwrap(), 5.0);
+        assert_eq!(judges[0].temperature.unwrap(), 0.6);
+        assert_eq!(judges[1].endpoint, "https://api.openai.com/v1");
+        assert_eq!(judges[1].model, "gpt-4o");
+        assert_eq!(judges[1].api_key_env.as_deref().unwrap(), "OPENAI_API_KEY");
+        assert_eq!(judges[1].concurrency.unwrap(), 5);
+    }
+
+    #[test]
+    fn test_no_judge_blocks_returns_none() {
+        let mut tmpfile = tempfile::NamedTempFile::new().unwrap();
+        write!(tmpfile, r#"
+rounds = 5
+"#).unwrap();
+
+        let config = load_config(tmpfile.path());
+        assert!(config.judge.is_none());
+        assert_eq!(config.rounds.unwrap(), 5);
     }
 }
