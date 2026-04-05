@@ -552,10 +552,18 @@ fn resolve_judges(
             jc.model.clone()
         };
 
-        let judge_id = stable_hash(&format!("{}{}", jc.endpoint, jc.model));
+        let judge_id = stable_hash(&format!("{}\0{}", jc.endpoint, jc.model));
         let weight = jc.weight.unwrap_or(1.0);
-        if weight <= 0.0 {
+        if !weight.is_finite() || weight <= 0.0 {
             bail(format!("Judge {} has non-positive weight {}. All weights must be > 0.", jc.model, weight));
+        }
+
+        let narrow_win = jc.narrow_win.unwrap_or(parse::DEFAULT_NARROW_WIN);
+        if !narrow_win.is_finite() || narrow_win <= 0.5 || narrow_win >= 1.0 {
+            bail(format!(
+                "Judge {} has narrow_win={}, must be finite, > 0.5 and < 1.0",
+                jc.model, narrow_win
+            ));
         }
 
         judges.push(ResolvedJudge {
@@ -569,7 +577,7 @@ fn resolve_judges(
             logprobs: global_logprobs,
             concurrency: jc.concurrency.unwrap_or(global_concurrency),
             weight,
-            narrow_win: jc.narrow_win.unwrap_or(parse::DEFAULT_NARROW_WIN),
+            narrow_win,
             max_tokens: jc.max_tokens.unwrap_or(default_max_tokens),
             reasoning_effort: jc.reasoning_effort.clone(),
             judge_id,
@@ -727,13 +735,6 @@ async fn run_rank(args: RankArgs) {
 
     if !logprobs_mode {
         eprintln!("Warning: Running without logprobs. Requires more comparisons to reach equivalent accuracy as when using logprobs.");
-    }
-
-    // Validate per-judge narrow_win
-    for j in &judges {
-        if j.narrow_win <= 0.5 || j.narrow_win >= 1.0 {
-            bail(format!("Judge {} has narrow_win={}, must be > 0.5 and < 1.0", j.display_name, j.narrow_win));
-        }
     }
 
     let (titles, texts) = load_items(&args);
@@ -1203,6 +1204,7 @@ async fn run_rank(args: RankArgs) {
             &engine.games_played,
             rounds,
             total_comparisons,
+            resolved.confidence_level,
             &scoring_result.judge_analytics,
             &judge_names,
             &judge_tokens,

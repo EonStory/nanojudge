@@ -24,17 +24,39 @@ struct JsonOutput {
 }
 
 /// Print results as a formatted terminal table.
-pub fn print_table(rankings: &[RankedItem], names: &[String], games_played: &[usize], rounds: usize, total_comparisons: usize, judge_analytics: &[JudgeAnalytics], judge_names: &HashMap<u64, String>, judge_tokens: &HashMap<u64, (u64, u64)>, judge_avg_wall_time: &HashMap<u64, f64>) {
+pub fn print_table(
+    rankings: &[RankedItem],
+    names: &[String],
+    games_played: &[usize],
+    rounds: usize,
+    total_comparisons: usize,
+    confidence_level: f64,
+    judge_analytics: &[JudgeAnalytics],
+    judge_names: &HashMap<u64, String>,
+    judge_tokens: &HashMap<u64, (u64, u64)>,
+    judge_avg_wall_time: &HashMap<u64, f64>,
+) {
+    let ci_label = format!("{:.0}% CI", confidence_level * 100.0);
+
     // Find the widest item name for padding
-    let name_width = rankings.iter()
+    let name_width = rankings
+        .iter()
         .map(|r| names[r.item as usize].len())
         .max()
         .unwrap_or(4)
         .max(4); // at least "Item"
 
     // Header
-    println!(" # | {:<name_width$} |   Score | 95% CI Low | 95% CI High | Comparisons | ID", "Item");
-    println!("---|-{}-|---------|------------|-------------|-------------|----", "-".repeat(name_width));
+    println!(
+        " # | {:<name_width$} |   Score | {:>10} | {:>11} | Comparisons | ID",
+        "Item",
+        format!("{} Low", ci_label),
+        format!("{} High", ci_label),
+    );
+    println!(
+        "---|-{}-|---------|------------|-------------|-------------|----",
+        "-".repeat(name_width)
+    );
 
     // Rows
     for (i, r) in rankings.iter().enumerate() {
@@ -42,7 +64,13 @@ pub fn print_table(rankings: &[RankedItem], names: &[String], games_played: &[us
         let games = games_played[r.item as usize];
         println!(
             "{:>2} | {:<name_width$} | {:>7.4} | {:>10.2} | {:>11.2} | {:>11} | {:>2}",
-            i + 1, name, r.score, r.lower_bound, r.upper_bound, games, r.item,
+            i + 1,
+            name,
+            r.score,
+            r.lower_bound,
+            r.upper_bound,
+            games,
+            r.item,
         );
     }
 
@@ -62,7 +90,11 @@ pub fn print_table(rankings: &[RankedItem], names: &[String], games_played: &[us
         );
         if let Some(&(input, output)) = judge_tokens.get(&ja.judge_id) {
             if input > 0 || output > 0 {
-                println!("Tokens — input: {}, output: {}", format_count(input as usize), format_count(output as usize));
+                println!(
+                    "Tokens — input: {}, output: {}",
+                    format_count(input as usize),
+                    format_count(output as usize)
+                );
             }
         }
         if let Some(&avg) = judge_avg_wall_time.get(&ja.judge_id) {
@@ -71,22 +103,37 @@ pub fn print_table(rankings: &[RankedItem], names: &[String], games_played: &[us
             }
         }
     } else {
-        print_judge_panel_analytics(judge_analytics, judge_names, judge_tokens, judge_avg_wall_time);
+        print_judge_panel_analytics(
+            judge_analytics,
+            judge_names,
+            judge_tokens,
+            judge_avg_wall_time,
+        );
     }
 }
 
 /// Print the judge panel analytics table (design doc section 9 format).
-fn print_judge_panel_analytics(analytics: &[JudgeAnalytics], judge_names: &HashMap<u64, String>, judge_tokens: &HashMap<u64, (u64, u64)>, judge_avg_wall_time: &HashMap<u64, f64>) {
+fn print_judge_panel_analytics(
+    analytics: &[JudgeAnalytics],
+    judge_names: &HashMap<u64, String>,
+    judge_tokens: &HashMap<u64, (u64, u64)>,
+    judge_avg_wall_time: &HashMap<u64, f64>,
+) {
     let has_decisiveness = analytics.iter().any(|ja| ja.decisiveness.is_some());
     let has_tokens = analytics.iter().any(|ja| {
-        judge_tokens.get(&ja.judge_id).is_some_and(|&(i, o)| i > 0 || o > 0)
+        judge_tokens
+            .get(&ja.judge_id)
+            .is_some_and(|&(i, o)| i > 0 || o > 0)
     });
     let has_wall_time = analytics.iter().any(|ja| {
-        judge_avg_wall_time.get(&ja.judge_id).is_some_and(|&t| t > 0.0)
+        judge_avg_wall_time
+            .get(&ja.judge_id)
+            .is_some_and(|&t| t > 0.0)
     });
 
     // Find the widest judge name for padding
-    let name_width = analytics.iter()
+    let name_width = analytics
+        .iter()
         .map(|ja| judge_names.get(&ja.judge_id).map_or(16, |n| n.len()))
         .max()
         .unwrap_or(5)
@@ -95,9 +142,16 @@ fn print_judge_panel_analytics(analytics: &[JudgeAnalytics], judge_names: &HashM
     println!();
 
     // Header
-    let mut header = format!("  {:<name_width$}   {:>11}   {:>15}", "Judge", "Comparisons", "Bias (->item1)");
-    let mut separator = format!("  {:<name_width$}   {:>11}   {:>15}",
-        "\u{2500}".repeat(name_width.min(30)), "\u{2500}".repeat(11), "\u{2500}".repeat(15));
+    let mut header = format!(
+        "  {:<name_width$}   {:>11}   {:>15}",
+        "Judge", "Comparisons", "Bias (->item1)"
+    );
+    let mut separator = format!(
+        "  {:<name_width$}   {:>11}   {:>15}",
+        "\u{2500}".repeat(name_width.min(30)),
+        "\u{2500}".repeat(11),
+        "\u{2500}".repeat(15)
+    );
 
     if has_decisiveness {
         header += &format!("   {:>18}", "Decisiveness");
@@ -105,7 +159,11 @@ fn print_judge_panel_analytics(analytics: &[JudgeAnalytics], judge_names: &HashM
     }
     if has_tokens {
         header += &format!("   {:>13}   {:>13}", "Input tokens", "Output tokens");
-        separator += &format!("   {:>13}   {:>13}", "\u{2500}".repeat(13), "\u{2500}".repeat(13));
+        separator += &format!(
+            "   {:>13}   {:>13}",
+            "\u{2500}".repeat(13),
+            "\u{2500}".repeat(13)
+        );
     }
     if has_wall_time {
         header += &format!("   {:>14}", "Avg round time");
@@ -116,7 +174,8 @@ fn print_judge_panel_analytics(analytics: &[JudgeAnalytics], judge_names: &HashM
     println!("{separator}");
 
     for ja in analytics {
-        let name = judge_names.get(&ja.judge_id)
+        let name = judge_names
+            .get(&ja.judge_id)
             .cloned()
             .unwrap_or_else(|| format!("{:016x}", ja.judge_id));
         let bias_str = format!(
@@ -126,7 +185,9 @@ fn print_judge_panel_analytics(analytics: &[JudgeAnalytics], judge_names: &HashM
 
         let mut line = format!(
             "  {:<name_width$}   {:>11}   {:>15}",
-            name, format_count(ja.num_comparisons), bias_str,
+            name,
+            format_count(ja.num_comparisons),
+            bias_str,
         );
 
         if has_decisiveness {
@@ -141,11 +202,18 @@ fn print_judge_panel_analytics(analytics: &[JudgeAnalytics], judge_names: &HashM
 
         if has_tokens {
             let (input, output) = judge_tokens.get(&ja.judge_id).copied().unwrap_or((0, 0));
-            line += &format!("   {:>13}   {:>13}", format_count(input as usize), format_count(output as usize));
+            line += &format!(
+                "   {:>13}   {:>13}",
+                format_count(input as usize),
+                format_count(output as usize)
+            );
         }
 
         if has_wall_time {
-            let avg = judge_avg_wall_time.get(&ja.judge_id).copied().unwrap_or(0.0);
+            let avg = judge_avg_wall_time
+                .get(&ja.judge_id)
+                .copied()
+                .unwrap_or(0.0);
             line += &format!("   {:>14}", format_duration(avg));
         }
 
@@ -182,7 +250,13 @@ fn format_count(n: usize) -> String {
 }
 
 /// Build JSON output string.
-fn build_json(rankings: &[RankedItem], names: &[String], rounds: usize, total_comparisons: usize, judge_analytics: &[JudgeAnalytics]) -> String {
+fn build_json(
+    rankings: &[RankedItem],
+    names: &[String],
+    rounds: usize,
+    total_comparisons: usize,
+    judge_analytics: &[JudgeAnalytics],
+) -> String {
     let items: Vec<JsonRankedItem> = rankings
         .iter()
         .enumerate()
@@ -216,8 +290,17 @@ fn build_json(rankings: &[RankedItem], names: &[String], rounds: usize, total_co
 }
 
 /// Print results as JSON.
-pub fn print_json(rankings: &[RankedItem], names: &[String], rounds: usize, total_comparisons: usize, judge_analytics: &[JudgeAnalytics]) {
-    println!("{}", build_json(rankings, names, rounds, total_comparisons, judge_analytics));
+pub fn print_json(
+    rankings: &[RankedItem],
+    names: &[String],
+    rounds: usize,
+    total_comparisons: usize,
+    judge_analytics: &[JudgeAnalytics],
+) {
+    println!(
+        "{}",
+        build_json(rankings, names, rounds, total_comparisons, judge_analytics)
+    );
 }
 
 #[cfg(test)]
@@ -226,11 +309,30 @@ mod tests {
 
     fn sample_rankings() -> (Vec<RankedItem>, Vec<String>) {
         let rankings = vec![
-            RankedItem { item: 2, score: 1.58, lower_bound: 1.20, upper_bound: 1.97 },
-            RankedItem { item: 0, score: 0.75, lower_bound: 0.45, upper_bound: 1.05 },
-            RankedItem { item: 1, score: 0.42, lower_bound: 0.12, upper_bound: 0.68 },
+            RankedItem {
+                item: 2,
+                score: 1.58,
+                lower_bound: 1.20,
+                upper_bound: 1.97,
+            },
+            RankedItem {
+                item: 0,
+                score: 0.75,
+                lower_bound: 0.45,
+                upper_bound: 1.05,
+            },
+            RankedItem {
+                item: 1,
+                score: 0.42,
+                lower_bound: 0.12,
+                upper_bound: 0.68,
+            },
         ];
-        let names = vec!["Apple".to_string(), "Banana".to_string(), "Mango".to_string()];
+        let names = vec![
+            "Apple".to_string(),
+            "Banana".to_string(),
+            "Mango".to_string(),
+        ];
         (rankings, names)
     }
 
