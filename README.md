@@ -4,7 +4,7 @@ Rank large lists of arbitrary items using LLMs as judges. You provide the items 
 
 Works with any OpenAI-compatible API endpoint — local vLLM, OpenAI, Anthropic, etc.
 
-[nanojudge.com](https://nanojudge.com) is a hosted version built on this engine, wrapped in a web UI with managed GPU infrastructure.
+[nanojudge.ai](https://nanojudge.ai) is a hosted version built on this engine, wrapped in a web UI with managed GPU infrastructure.
 
 ## Install
 
@@ -137,7 +137,7 @@ Per-judge settings (in `[[judge]]` blocks):
 
 2. **Bradley-Terry scoring** — all pairwise probabilities are combined into global scores using Bayesian MCMC inference (Gaussian Bradley-Terry with Metropolis-Hastings sampling). This produces point estimates plus confidence intervals.
 
-3. **Smart pairing** — the engine decides which pairs to compare next to maximize information gain. Two strategies:
+3. **Adaptive pairing** — the engine uses the results of previous comparisons to decide what to compare next, maximizing information gain. Two strategies:
    - **Balanced**: every item gets equal comparison time (good for full rankings)
    - **Top-heavy**: focuses comparisons on top contenders (good for large lists where you mainly want the best items)
 
@@ -149,7 +149,7 @@ Any instruct-tuned model served via an OpenAI-compatible API with logprobs suppo
 
 | Model | Size | Recommended | Notes |
 |---|---|---|---|
-| [Qwen3-4B-Instruct-2507](https://huggingface.co/Qwen/Qwen3-4B-Instruct-2507) | 4B | Yes | Used in production on nanojudge.com. Good balance of quality and speed. |
+| [Qwen3-4B-Instruct-2507](https://huggingface.co/Qwen/Qwen3-4B-Instruct-2507) | 4B | Yes | Used in production on nanojudge.ai. Good balance of quality and speed. |
 | [Qwen3.5-2B](https://huggingface.co/Qwen/Qwen3.5-2B) | 2B | Yes | Reliably follows NanoJudge's instructions. |
 | [LFM2.5-1.2B-Instruct](https://huggingface.co/LiquidAI/LFM2.5-1.2B-Instruct) | 1.2B | No | Fails to declare a verdict consistently. |
 
