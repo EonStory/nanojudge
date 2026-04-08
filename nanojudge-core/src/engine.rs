@@ -130,8 +130,8 @@ impl RankingEngine {
         }
 
         let num_items = self.id_map.len();
-        let indexed: Vec<(usize, usize, f64, usize)> = self.completed_comparisons.iter().map(|c| {
-            (self.id_map.to_idx(c.item1), self.id_map.to_idx(c.item2), c.item1_win_probability, 0)
+        let indexed: Vec<(usize, usize, f64)> = self.completed_comparisons.iter().map(|c| {
+            (self.id_map.to_idx(c.item1), self.id_map.to_idx(c.item2), c.item1_win_probability)
         }).collect();
         let mut bt = BradleyTerry::new(num_items, &indexed, 0.01);
         bt.calculate_scores(30);

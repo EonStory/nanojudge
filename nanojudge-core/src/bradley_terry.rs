@@ -4,8 +4,6 @@
 /// Internal module — operates on pre-mapped `usize` indices, not caller IDs.
 use std::collections::HashMap;
 
-use crate::types::IndexedComparison;
-
 const CONVERGENCE_THRESHOLD: f64 = 1e-6;
 
 pub struct BradleyTerry {
@@ -24,7 +22,7 @@ pub struct BradleyTerry {
 impl BradleyTerry {
     pub fn new(
         num_items: usize,
-        results: &[IndexedComparison],
+        results: &[(usize, usize, f64)],
         regularization_strength: f64,
     ) -> Self {
         let ghost_idx = num_items;
@@ -33,7 +31,7 @@ impl BradleyTerry {
         // Build sparse wins table
         let mut wins_table: Vec<HashMap<usize, f64>> = (0..total).map(|_| HashMap::new()).collect();
 
-        for &(i1, i2, prob, _judge_idx) in results {
+        for &(i1, i2, prob) in results {
             assert!(i1 < num_items, "item1 index {} out of range (num_items = {})", i1, num_items);
             assert!(i2 < num_items, "item2 index {} out of range (num_items = {})", i2, num_items);
 
@@ -180,8 +178,8 @@ impl BradleyTerry {
 mod tests {
     use super::*;
 
-    fn make_comp(i1: usize, i2: usize, prob: f64) -> IndexedComparison {
-        (i1, i2, prob, 0)
+    fn make_comp(i1: usize, i2: usize, prob: f64) -> (usize, usize, f64) {
+        (i1, i2, prob)
     }
 
     #[test]
@@ -204,7 +202,7 @@ mod tests {
 
     #[test]
     fn test_no_comparisons_equal_scores() {
-        let results: Vec<IndexedComparison> = vec![];
+        let results: Vec<(usize, usize, f64)> = vec![];
 
         let mut bt = BradleyTerry::new(2, &results, 0.01);
         bt.calculate_scores(30);

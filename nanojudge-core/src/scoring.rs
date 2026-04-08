@@ -419,8 +419,8 @@ mod tests {
             let id_map = IdMap::from_ids(&item_ids);
             let judge_id_to_idx: HashMap<u64, usize> = ji.judge_ids.iter().enumerate().map(|(i, &id)| (id, i)).collect();
             let indexed = id_map.convert_comparisons(&comparisons, &judge_id_to_idx);
-            // Strip judge_idx for BT MLE (it only uses first 3 tuple elements)
-            let mut bt = crate::bradley_terry::BradleyTerry::new(n, &indexed, 0.01);
+            let bt_input: Vec<(usize, usize, f64)> = indexed.iter().map(|&(i1, i2, p, _)| (i1, i2, p)).collect();
+            let mut bt = crate::bradley_terry::BradleyTerry::new(n, &bt_input, 0.01);
             bt.calculate_scores(30);
             let bt_scores: Vec<f64> = (0..n).map(|i| bt.get_score(i)).collect();
 
