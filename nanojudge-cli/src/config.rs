@@ -49,6 +49,8 @@ pub struct NanojudgeConfig {
     pub proposal_std: Option<f64>,
     pub bias_prior_tau2: Option<f64>,
     pub bias_proposal_std: Option<f64>,
+    pub decisiveness_prior_tau2: Option<f64>,
+    pub decisiveness_proposal_std: Option<f64>,
     /// Judge panel configuration. At least one [[judge]] block is required.
     pub judge: Option<Vec<JudgeConfig>>,
 }
@@ -162,6 +164,12 @@ temperature = 0.7
 
 # MH proposal step size for bias. Default: 0.15.
 # bias_proposal_std = 0.15
+
+# Prior variance on log-decisiveness (logprobs mode only). Default: 1.0.
+# decisiveness_prior_tau2 = 1.0
+
+# MH proposal step size for log-decisiveness (logprobs mode only). Default: 0.1.
+# decisiveness_proposal_std = 0.1
 ";
 
 /// Returns the default config path.

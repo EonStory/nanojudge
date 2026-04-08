@@ -165,6 +165,14 @@ struct ConfigArgs {
     /// MH proposal step size for bias. Default: 0.15.
     #[arg(long)]
     bias_proposal_std: Option<f64>,
+
+    /// Prior variance on log-decisiveness (logprobs mode). Default: 1.0.
+    #[arg(long)]
+    decisiveness_prior_tau2: Option<f64>,
+
+    /// MH proposal step size for log-decisiveness (logprobs mode). Default: 0.1.
+    #[arg(long)]
+    decisiveness_proposal_std: Option<f64>,
 }
 
 #[derive(Parser)]
@@ -430,6 +438,8 @@ struct ResolvedConfig {
     proposal_std: f64,
     bias_prior_tau2: f64,
     bias_proposal_std: f64,
+    decisiveness_prior_tau2: f64,
+    decisiveness_proposal_std: f64,
 }
 
 /// A resolved judge — all fields concrete, ready to build LlmConfig.
@@ -629,6 +639,10 @@ fn resolve_config(shared: &ConfigArgs, cfg: &config::NanojudgeConfig) -> Resolve
         .unwrap_or(2.0);
     let bias_proposal_std = merge_opt(shared.bias_proposal_std, cfg.bias_proposal_std, "bias-proposal-std")
         .unwrap_or(0.15);
+    let decisiveness_prior_tau2 = merge_opt(shared.decisiveness_prior_tau2, cfg.decisiveness_prior_tau2, "decisiveness-prior-tau2")
+        .unwrap_or(1.0);
+    let decisiveness_proposal_std = merge_opt(shared.decisiveness_proposal_std, cfg.decisiveness_proposal_std, "decisiveness-proposal-std")
+        .unwrap_or(0.1);
 
     // bias_prior: user specifies in probability space, we convert to logit
     let bias_prior = merge_opt(shared.bias_prior, cfg.bias_prior, "bias-prior")
@@ -676,6 +690,8 @@ fn resolve_config(shared: &ConfigArgs, cfg: &config::NanojudgeConfig) -> Resolve
         proposal_std,
         bias_prior_tau2,
         bias_proposal_std,
+        decisiveness_prior_tau2,
+        decisiveness_proposal_std,
     }
 }
 
@@ -1107,8 +1123,8 @@ async fn run_rank(args: RankArgs) {
                     bias_prior_tau2: resolved.bias_prior_tau2,
                     bias_proposal_std: resolved.bias_proposal_std,
                     bias_prior_logit: resolved.bias_prior_logit,
-                    decisiveness_prior_tau2: 1.0,
-                    decisiveness_proposal_std: 0.1,
+                    decisiveness_prior_tau2: resolved.decisiveness_prior_tau2,
+                    decisiveness_proposal_std: resolved.decisiveness_proposal_std,
                 },
                 &judge_info,
             );
@@ -1147,8 +1163,8 @@ async fn run_rank(args: RankArgs) {
             bias_prior_tau2: resolved.bias_prior_tau2,
             bias_proposal_std: resolved.bias_proposal_std,
             bias_prior_logit: resolved.bias_prior_logit,
-            decisiveness_prior_tau2: 1.0,
-            decisiveness_proposal_std: 0.1,
+            decisiveness_prior_tau2: resolved.decisiveness_prior_tau2,
+            decisiveness_proposal_std: resolved.decisiveness_proposal_std,
         },
         &judge_info,
     );
