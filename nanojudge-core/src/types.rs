@@ -88,7 +88,9 @@ pub struct RankedItem {
 pub struct ScoringOptions {
     /// Number of post-burn-in MCMC iterations (e.g. 200 interim, 2000 final).
     pub iterations: usize,
-    /// Burn-in iterations. Ignored when `warm_start` is provided.
+    /// Burn-in iterations run before collecting samples. Applied even when `warm_start` is
+    /// provided, so set to 0 (or a small value) if the warm start is already near the
+    /// stationary distribution.
     pub burn_in: usize,
     /// Confidence interval level (e.g. 0.95).
     pub confidence_level: f64,
