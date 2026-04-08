@@ -885,6 +885,7 @@ async fn run_rank(args: RankArgs) {
         });
     }
 
+    let mut interim_warm_start: Option<nanojudge_core::WarmStartState> = None;
     for round in 0..rounds {
         if cancelled.load(Ordering::Relaxed) {
             break;
@@ -948,6 +949,8 @@ async fn run_rank(args: RankArgs) {
         let mut judge_aborted: Vec<usize> = vec![0; judges.len()];
 
         for (handle, handle_judge_idx) in handles {
+            let this_idx = global_idx;
+            global_idx += 1;
             if cancelled.load(Ordering::Relaxed) {
                 handle.abort();
                 judge_aborted[handle_judge_idx] += 1;
@@ -980,7 +983,7 @@ async fn run_rank(args: RankArgs) {
                     if let Some(p) = result.parse_result.item1_win_probability {
                         // Save to JSONL if this index was selected
                         if let Some((ref file_mutex, ref indices)) = save_file {
-                            if indices.contains(&global_idx) {
+                            if indices.contains(&this_idx) {
                                 let line = serde_json::json!({
                                     "round": round + 1,
                                     "item1": titles[result.item1_id as usize],
@@ -1042,7 +1045,6 @@ async fn run_rank(args: RankArgs) {
                     }
                 }
             }
-            global_idx += 1;
         }
 
         if cancelled.load(Ordering::Relaxed) {
@@ -1094,10 +1096,10 @@ async fn run_rank(args: RankArgs) {
                 &engine.completed_comparisons,
                 &ScoringOptions {
                     iterations: 200,
-                    burn_in: 100,
+                    burn_in: if interim_warm_start.is_some() { 0 } else { 100 },
                     confidence_level: resolved.confidence_level,
                     top_k,
-                    warm_start: None,
+                    warm_start: interim_warm_start.take(),
                     regularization_strength: resolved.regularization_strength,
                     prior_tau2: resolved.prior_tau2,
                     sigma2: resolved.sigma2,
@@ -1112,6 +1114,7 @@ async fn run_rank(args: RankArgs) {
             );
             engine.mcmc_top_k_probs = interim.top_k_probs;
             engine.mcmc_sample_means = interim.sample_means;
+            interim_warm_start = Some(interim.warm_start_state);
         }
     }
 

@@ -137,9 +137,9 @@ pub async fn run_benchmark(
                         verdict_letter: parse_result.item1_win_probability.and_then(|p: f64| {
                             // Map probability back to verdict letter index
                             if (p - 1.0).abs() < 0.01 { Some(0) }      // A
-                            else if (p - 0.8).abs() < 0.01 { Some(1) }  // B (approximate)
+                            else if (p - narrow_win).abs() < 0.01 { Some(1) }  // B
                             else if (p - 0.5).abs() < 0.01 { Some(2) }  // C
-                            else if (p - 0.2).abs() < 0.01 { Some(3) }  // D (approximate)
+                            else if (p - (1.0 - narrow_win)).abs() < 0.01 { Some(3) }  // D
                             else if p.abs() < 0.01 { Some(4) }          // E
                             else { None } // logprob-derived, not a clean letter
                         }),

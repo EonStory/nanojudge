@@ -14,6 +14,18 @@ struct JsonRankedItem {
 }
 
 #[derive(Serialize)]
+struct JsonJudgeAnalytics {
+    judge_id: u64,
+    positional_bias: f64,
+    positional_bias_ci_low: f64,
+    positional_bias_ci_high: f64,
+    decisiveness: Option<f64>,
+    decisiveness_ci_low: Option<f64>,
+    decisiveness_ci_high: Option<f64>,
+    num_comparisons: usize,
+}
+
+#[derive(Serialize)]
 struct JsonOutput {
     items: Vec<JsonRankedItem>,
     total_comparisons: usize,
@@ -21,6 +33,7 @@ struct JsonOutput {
     positional_bias: f64,
     positional_bias_ci_low: f64,
     positional_bias_ci_high: f64,
+    judge_analytics: Vec<JsonJudgeAnalytics>,
 }
 
 /// Print results as a formatted terminal table.
@@ -270,20 +283,41 @@ fn build_json(
         })
         .collect();
 
-    // For backward compat, use first judge's bias as the top-level positional_bias
-    let (bias, bias_ci) = if let Some(ja) = judge_analytics.first() {
-        (ja.positional_bias, ja.positional_bias_ci)
+    // Top-level bias: weighted average across judges by num_comparisons (panel-wide aggregate).
+    let total_n: usize = judge_analytics.iter().map(|ja| ja.num_comparisons).sum();
+    let (bias, bias_ci_low, bias_ci_high) = if total_n > 0 {
+        let w = |x: f64, n: usize| x * (n as f64) / (total_n as f64);
+        (
+            judge_analytics.iter().map(|ja| w(ja.positional_bias, ja.num_comparisons)).sum(),
+            judge_analytics.iter().map(|ja| w(ja.positional_bias_ci.0, ja.num_comparisons)).sum(),
+            judge_analytics.iter().map(|ja| w(ja.positional_bias_ci.1, ja.num_comparisons)).sum(),
+        )
     } else {
-        (0.5, (0.5, 0.5))
+        (0.5, 0.5, 0.5)
     };
+
+    let judge_analytics_json: Vec<JsonJudgeAnalytics> = judge_analytics
+        .iter()
+        .map(|ja| JsonJudgeAnalytics {
+            judge_id: ja.judge_id,
+            positional_bias: ja.positional_bias,
+            positional_bias_ci_low: ja.positional_bias_ci.0,
+            positional_bias_ci_high: ja.positional_bias_ci.1,
+            decisiveness: ja.decisiveness,
+            decisiveness_ci_low: ja.decisiveness_ci.map(|c| c.0),
+            decisiveness_ci_high: ja.decisiveness_ci.map(|c| c.1),
+            num_comparisons: ja.num_comparisons,
+        })
+        .collect();
 
     let output = JsonOutput {
         items,
         total_comparisons,
         rounds,
         positional_bias: bias,
-        positional_bias_ci_low: bias_ci.0,
-        positional_bias_ci_high: bias_ci.1,
+        positional_bias_ci_low: bias_ci_low,
+        positional_bias_ci_high: bias_ci_high,
+        judge_analytics: judge_analytics_json,
     };
 
     serde_json::to_string_pretty(&output).unwrap()

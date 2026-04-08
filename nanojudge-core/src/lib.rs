@@ -12,7 +12,7 @@
 /// use nanojudge_core::{run_scoring, ComparisonInput, JudgeInfo, ScoringOptions, stable_hash};
 ///
 /// let item_ids = vec![100, 200, 300]; // your IDs — any i64 values
-/// let judge_id = stable_hash("http://localhost:8000my-model");
+/// let judge_id = stable_hash("http://localhost:8000\0my-model");
 ///
 /// let comparisons = vec![
 ///     ComparisonInput { item1: 100, item2: 200, item1_win_probability: 0.8, judge_id },
