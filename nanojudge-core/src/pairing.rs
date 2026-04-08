@@ -144,53 +144,69 @@ fn generate_balanced_iteration(
     pairings: &mut Vec<IndexedPair>,
     rng: &mut impl Rng,
 ) {
-    // Sort items by rating so we can use a window for opponent selection.
-    // sorted_pool[i] = (item_index, rating), sorted by rating ascending.
+    // Sort items by rating ascending so we can pick opponents from a narrow
+    // rating-window around each item1. sorted_pool is immutable for the rest
+    // of the function; "removal" is done via tombstones so the remaining
+    // entries keep their sorted positions (and the window math stays valid).
     let mut sorted_pool: Vec<(usize, f64)> = (0..num_items)
         .map(|i| (i, current_ratings[i]))
         .collect();
     sorted_pool.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap_or(std::cmp::Ordering::Equal));
 
+    let n = sorted_pool.len();
+    // alive[p] = false means sorted_pool[p] has already been paired this iteration.
+    let mut alive = vec![true; n];
+    // live_positions holds the sorted-pool indices still available. Picking
+    // item1 is a swap_remove on this list (O(1) random removal). live_idx_of
+    // is the inverse map: live_idx_of[p] = index of p inside live_positions,
+    // or None if tombstoned. It lets us also O(1)-remove item2 once we know
+    // its sorted-pool position.
+    let mut live_positions: Vec<usize> = (0..n).collect();
+    let mut live_idx_of: Vec<Option<usize>> = (0..n).map(Some).collect();
+
+    let half_w = OPPONENT_WINDOW_SIZE / 2;
+    let mut weights: Vec<f64> = Vec::with_capacity(OPPONENT_WINDOW_SIZE + 1);
+    let mut candidates: Vec<usize> = Vec::with_capacity(OPPONENT_WINDOW_SIZE + 1);
+
     for _ in 0..max_pairs {
-        if sorted_pool.len() < 2 {
+        if live_positions.len() < 2 {
             break;
         }
 
-        // Pick item1 randomly from pool
-        let item1_pool_idx = rng.random_range(0..sorted_pool.len());
-        let (item1, item1_rating) = sorted_pool[item1_pool_idx];
-        sorted_pool.remove(item1_pool_idx);
+        // Pick item1: random live entry, removed via swap_remove.
+        let live_idx1 = rng.random_range(0..live_positions.len());
+        let pos1 = swap_remove_live(&mut live_positions, &mut live_idx_of, live_idx1);
+        alive[pos1] = false;
+        let (item1, item1_rating) = sorted_pool[pos1];
 
-        if sorted_pool.is_empty() {
-            break;
+        // Collect live candidates in the rating window around pos1.
+        let window_start = pos1.saturating_sub(half_w);
+        let window_end = (pos1 + half_w + 1).min(n);
+        candidates.clear();
+        weights.clear();
+        for p in window_start..window_end {
+            if alive[p] {
+                candidates.push(p);
+                weights.push(calculate_info_gain(item1_rating, sorted_pool[p].1, sharpness));
+            }
         }
-
-        // Find item1's position in the now-sorted pool (it was removed, so
-        // use the position where item1_pool_idx was, clamped to valid range).
-        // This is approximate but close enough for windowing.
-        let center = item1_pool_idx.min(sorted_pool.len() - 1);
-
-        // Window of nearby items in rating-sorted order
-        let half_w = OPPONENT_WINDOW_SIZE / 2;
-        let window_start = center.saturating_sub(half_w);
-        let window_end = (center + half_w + 1).min(sorted_pool.len());
-        let window = &sorted_pool[window_start..window_end];
-
-        let weights: Vec<f64> = window.iter().map(|&(_, opp_rating)| {
-            calculate_info_gain(item1_rating, opp_rating, sharpness)
-        }).collect();
+        if candidates.is_empty() {
+            // Window exhausted — skip this item1 for the rest of this iteration.
+            continue;
+        }
 
         let total_weight: f64 = weights.iter().sum();
-
-        let selected_in_window = if total_weight == 0.0 {
-            rng.random_range(0..window.len())
+        let selected = if total_weight == 0.0 {
+            rng.random_range(0..candidates.len())
         } else {
             weighted_random_select(&weights, total_weight, rng)
         };
 
-        let item2_pool_idx = window_start + selected_in_window;
-        let (item2, _) = sorted_pool[item2_pool_idx];
-        sorted_pool.remove(item2_pool_idx);
+        let pos2 = candidates[selected];
+        let live_idx2 = live_idx_of[pos2].expect("candidate must be alive");
+        swap_remove_live(&mut live_positions, &mut live_idx_of, live_idx2);
+        alive[pos2] = false;
+        let (item2, _) = sorted_pool[pos2];
 
         if rng.random::<f64>() < 0.5 {
             pairings.push((item1, item2));
@@ -198,6 +214,24 @@ fn generate_balanced_iteration(
             pairings.push((item2, item1));
         }
     }
+}
+
+/// Remove the entry at `live_idx` from `live_positions` in O(1) using
+/// swap_remove, keeping `live_idx_of` in sync. Returns the sorted-pool
+/// position that was removed.
+fn swap_remove_live(
+    live_positions: &mut Vec<usize>,
+    live_idx_of: &mut [Option<usize>],
+    live_idx: usize,
+) -> usize {
+    let removed_pos = live_positions.swap_remove(live_idx);
+    live_idx_of[removed_pos] = None;
+    // If we didn't remove the last entry, the old last entry now sits at live_idx.
+    if live_idx < live_positions.len() {
+        let moved_pos = live_positions[live_idx];
+        live_idx_of[moved_pos] = Some(live_idx);
+    }
+    removed_pos
 }
 
 pub(crate) fn generate_top_heavy_pairings_indexed(
