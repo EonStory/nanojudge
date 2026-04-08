@@ -149,17 +149,34 @@ pub fn parse_response(_text: &str, logprobs: &[LogprobContent], narrow_win: f64)
 /// handle cases where "verdict" appears in the analysis before the final verdict.
 pub fn parse_response_text(text: &str, narrow_win: f64) -> ParseResult {
     let mapping = likert_mapping(narrow_win);
-    let lower = text.to_lowercase();
+    // Use ASCII lowercase so byte offsets stay aligned with the original text —
+    // we need that alignment below to check the original character's case.
+    let lower = text.to_ascii_lowercase();
+    let orig_bytes = text.as_bytes();
     let mut result = None;
     let mut search_start = 0;
 
     while let Some(offset) = lower[search_start..].find("verdict") {
         let after_verdict = search_start + offset + 7; // len("verdict")
-        for c in lower[after_verdict..].chars() {
+        let mut saw_colon = false;
+        for (byte_off, c) in lower[after_verdict..].char_indices() {
             match c {
-                ' ' | '\t' | '\n' | '\r' | ':' => continue,
+                ' ' | '\t' | '\n' | '\r' => continue,
+                ':' => {
+                    saw_colon = true;
+                    continue;
+                }
                 _ => {
                     if let Some(idx) = letter_to_index(c) {
+                        // Mirror the logprob-mode guard: a bare lowercase 'a'
+                        // with no preceding colon is almost certainly the
+                        // English article ("the verdict a reader reaches"),
+                        // not a Verdict A answer. Uppercase 'A' is always a
+                        // verdict; lowercase 'a' only counts after a colon.
+                        let is_lower_a = c == 'a' && orig_bytes[after_verdict + byte_off] != b'A';
+                        if is_lower_a && !saw_colon {
+                            break;
+                        }
                         result = Some(mapping[idx]);
                     }
                     break;
