@@ -42,8 +42,6 @@ pub struct SamplesResult {
 pub struct GaussianBT {
     /// Number of real items (excluding ghost).
     num_items: usize,
-    /// Total items including ghost.
-    total: usize,
     /// Ghost player index.
     ghost_idx: usize,
     /// Comparisons in logit space (raw, not de-biased).
@@ -147,7 +145,6 @@ impl GaussianBT {
 
         GaussianBT {
             num_items,
-            total,
             ghost_idx,
             comparisons,
             item_comparisons,
@@ -308,15 +305,17 @@ impl GaussianBT {
     }
 
     fn normalize_log_strengths(&mut self) {
-        let mean = self.log_strengths.iter().sum::<f64>() / self.total as f64;
-        for val in &mut self.log_strengths {
+        // Ghost is a fixed anchor at 0 — exclude it from the mean and leave it untouched.
+        let mean = self.log_strengths[..self.num_items].iter().sum::<f64>() / self.num_items as f64;
+        for val in &mut self.log_strengths[..self.num_items] {
             *val -= mean;
         }
+        self.log_strengths[self.ghost_idx] = 0.0;
     }
 
     fn gibbs_iteration(&mut self, rng: &mut impl Rng) {
-        // Step 1: Update each item's log-strength
-        for i in 0..self.total {
+        // Step 1: Update each item's log-strength (ghost is a fixed anchor, skip it)
+        for i in 0..self.num_items {
             self.update_strength(i, rng);
         }
 
