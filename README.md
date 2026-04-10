@@ -1,6 +1,8 @@
 # nanojudge
 
-Rank large lists of arbitrary items using LLMs as judges. You provide the items and a comparison criterion (e.g. "Which is healthier?", "Which paper is more impactful?"), and nanojudge runs pairwise comparisons, extracts confidence from token logprobs, and combines everything into a statistically rigorous ranking with confidence intervals.
+Rank large lists of arbitrary items using LLMs as judges. Simply provide a criterion (e.g., "Which is healthier?") and your items (e.g., "Eggs", "Butter", "Spinach", ...).
+
+Instead of overwhelming an LLM with one massive prompt, NanoJudge breaks the task down into a series of head-to-head matchups. Operating like an intelligent matchmaking league, it adaptively pairs items of similar strength against each other as the results come in to efficiently produce an accurate leaderboard. These individual wins and losses are fed into an Elo-style rating system, producing a transparent final ranking with confidence intervals, all backed by AI explanations.
 
 Works with any OpenAI-compatible API endpoint — local vLLM, OpenAI, Anthropic, etc.
 
