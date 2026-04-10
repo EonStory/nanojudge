@@ -150,7 +150,7 @@ pub async fn send_comparison_request(
         }),
     };
 
-    let url = format!("{}/v1/chat/completions", config.endpoint.trim_end_matches('/'));
+    let url = format!("{}/v1/chat/completions", config.endpoint.trim_end_matches('/').trim_end_matches("/v1"));
 
     let mut req_builder = client.post(&url).json(&request);
     if let Some(ref key) = config.api_key {
