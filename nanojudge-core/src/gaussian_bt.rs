@@ -337,55 +337,6 @@ impl GaussianBT {
         // (done by caller after gibbs_iteration, same as before)
     }
 
-    /// Main MCMC calculation returning ranked results.
-    /// Items in the returned RankedItem use index-as-i64 (caller maps to real IDs).
-    pub fn calculate(
-        &mut self,
-        mcmc_iterations: usize,
-        confidence_level: f64,
-        burn_in: usize,
-    ) -> Vec<RankedItem> {
-        let mut rng = rand::rng();
-        let n = self.num_items;
-
-        for _ in 0..burn_in {
-            self.gibbs_iteration(&mut rng);
-            self.normalize_log_strengths();
-        }
-
-        let mut samples_per_item: Vec<Vec<f64>> = (0..n).map(|_| Vec::with_capacity(mcmc_iterations)).collect();
-
-        for _ in 0..mcmc_iterations {
-            self.gibbs_iteration(&mut rng);
-            self.normalize_log_strengths();
-            for idx in 0..n {
-                samples_per_item[idx].push(self.log_strengths[idx].exp());
-            }
-        }
-
-        let alpha = 1.0 - confidence_level;
-        let mut results = Vec::with_capacity(n);
-
-        for idx in 0..n {
-            let samples = &mut samples_per_item[idx];
-            samples.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
-            let mean = samples.iter().sum::<f64>() / samples.len() as f64;
-            let lower_idx = ((alpha / 2.0) * samples.len() as f64).floor() as usize;
-            let upper_idx = ((1.0 - alpha / 2.0) * samples.len() as f64).floor() as usize;
-            let upper_idx = upper_idx.saturating_sub(1).max(lower_idx);
-
-            results.push(RankedItem {
-                item: idx as i64,
-                score: mean,
-                lower_bound: samples[lower_idx],
-                upper_bound: samples[upper_idx],
-            });
-        }
-
-        results.sort_by(|a, b| b.score.partial_cmp(&a.score).unwrap_or(std::cmp::Ordering::Equal));
-        results
-    }
-
     /// Run MCMC sampling loop and collect results. Shared by cold-start and warm-start paths.
     fn collect_samples(
         &mut self,
@@ -653,7 +604,10 @@ mod tests {
         let opts = default_options();
         let ji = single_judge_info();
         let mut mcmc = GaussianBT::new(3, &results, &opts, &ji);
-        let ranked = mcmc.calculate(500, 0.95, 200);
+        let samples = mcmc.calculate_with_samples(500, 200, 0);
+        let ranked = GaussianBT::compute_confidence_intervals_from_sorted_samples(
+            &samples.sorted_samples, &samples.means, 0.95,
+        );
 
         assert_eq!(ranked[0].item, 0); // A first
         assert_eq!(ranked[2].item, 2); // C last
@@ -734,7 +688,10 @@ mod tests {
             logprobs_mode: false,
         };
         let mut mcmc = GaussianBT::new(3, &results, &opts, &ji);
-        let ranked = mcmc.calculate(500, 0.95, 200);
+        let samples = mcmc.calculate_with_samples(500, 200, 0);
+        let ranked = GaussianBT::compute_confidence_intervals_from_sorted_samples(
+            &samples.sorted_samples, &samples.means, 0.95,
+        );
 
         assert_eq!(ranked[0].item, 0);
         assert_eq!(ranked[2].item, 2);
