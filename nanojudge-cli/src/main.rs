@@ -26,6 +26,16 @@ const DEFAULT_MAX_RETRIES: usize = 3;
 const DEFAULT_ANALYSIS_LENGTH: &str = "2 paragraphs";
 const DEFAULT_BENCHMARK_PAIRS: &str = "100";
 
+#[derive(Default)]
+struct JudgeStats {
+    input_tokens: u64,
+    output_tokens: u64,
+    max_tokens_hits: usize,
+    total_responses: usize,
+    wall_time_sum: f64,
+    round_count: usize,
+}
+
 pub fn bail(msg: impl std::fmt::Display) -> ! {
     eprintln!("Error: {msg}");
     std::process::exit(1);
@@ -885,12 +895,7 @@ async fn run_rank(args: RankArgs) {
     let mut total_retries: usize = 0;
     let mut failed_http: usize = 0;
     let mut failed_parse: usize = 0;
-    let mut judge_input_tokens: Vec<u64> = vec![0; judges.len()];
-    let mut judge_output_tokens: Vec<u64> = vec![0; judges.len()];
-    let mut judge_max_tokens_hits: Vec<usize> = vec![0; judges.len()];
-    let mut judge_total_responses: Vec<usize> = vec![0; judges.len()];
-    let mut judge_wall_time_sums: Vec<f64> = vec![0.0; judges.len()];
-    let mut judge_round_counts: Vec<usize> = vec![0; judges.len()];
+    let mut judge_stats: Vec<JudgeStats> = (0..judges.len()).map(|_| JudgeStats::default()).collect();
 
     let cancelled = Arc::new(AtomicBool::new(false));
     {
@@ -988,13 +993,13 @@ async fn run_rank(args: RankArgs) {
                         *entry = Some(finished_at);
                     }
                     total_retries += result.retries_used;
-                    judge_total_responses[judge_idx] += 1;
+                    judge_stats[judge_idx].total_responses += 1;
                     if result.hit_max_tokens {
-                        judge_max_tokens_hits[judge_idx] += 1;
+                        judge_stats[judge_idx].max_tokens_hits += 1;
                     }
                     if let Some(usage) = &result.usage {
-                        judge_input_tokens[judge_idx] += usage.prompt_tokens;
-                        judge_output_tokens[judge_idx] += usage.completion_tokens;
+                        judge_stats[judge_idx].input_tokens += usage.prompt_tokens;
+                        judge_stats[judge_idx].output_tokens += usage.completion_tokens;
                     }
                     if let Some(p) = result.parse_result.item1_win_probability {
                         // Save to JSONL if this index was selected
@@ -1076,8 +1081,8 @@ async fn run_rank(args: RankArgs) {
         // Accumulate per-judge wall time for this round
         for (j, finish) in judge_last_finish.iter().enumerate() {
             if let Some(t) = finish {
-                judge_wall_time_sums[j] += t.duration_since(round_start).as_secs_f64();
-                judge_round_counts[j] += 1;
+                judge_stats[j].wall_time_sum += t.duration_since(round_start).as_secs_f64();
+                judge_stats[j].round_count += 1;
             }
         }
 
@@ -1184,11 +1189,11 @@ async fn run_rank(args: RankArgs) {
     // Print max_tokens warnings (always, not just verbose)
     let mut any_max_tokens_hit = false;
     for (i, judge) in judges.iter().enumerate() {
-        if judge_max_tokens_hits[i] > 0 {
+        if judge_stats[i].max_tokens_hits > 0 {
             any_max_tokens_hit = true;
             eprintln!(
                 "Warning: {} hit max_tokens on {}/{} responses.",
-                judge.display_name, judge_max_tokens_hits[i], judge_total_responses[i],
+                judge.display_name, judge_stats[i].max_tokens_hits, judge_stats[i].total_responses,
             );
         }
     }
@@ -1201,12 +1206,12 @@ async fn run_rank(args: RankArgs) {
         .map(|j| (j.judge_id, j.display_name.clone()))
         .collect();
     let judge_tokens: HashMap<u64, (u64, u64)> = judges.iter().enumerate()
-        .map(|(i, j)| (j.judge_id, (judge_input_tokens[i], judge_output_tokens[i])))
+        .map(|(i, j)| (j.judge_id, (judge_stats[i].input_tokens, judge_stats[i].output_tokens)))
         .collect();
     let judge_avg_wall_time: HashMap<u64, f64> = judges.iter().enumerate()
         .map(|(i, j)| {
-            let avg = if judge_round_counts[i] > 0 {
-                judge_wall_time_sums[i] / judge_round_counts[i] as f64
+            let avg = if judge_stats[i].round_count > 0 {
+                judge_stats[i].wall_time_sum / judge_stats[i].round_count as f64
             } else {
                 0.0
             };
