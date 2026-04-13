@@ -199,7 +199,7 @@ pub async fn send_comparison_request(
 
 /// Call the LLM to compare two items, with retries on HTTP errors.
 ///
-/// Retries up to `max_retries` times with a 1-second delay between attempts.
+/// Retries up to `max_retries` times with exponential backoff (1s, 4s, 16s).
 /// Only HTTP/network errors trigger retries — unparseable verdicts do not.
 pub async fn compare_pair(
     client: &Client,
@@ -241,7 +241,8 @@ pub async fn compare_pair(
                             attempt + 1, max_retries, item1_name, item2_name, judge_name, last_err
                         );
                     }
-                    tokio::time::sleep(std::time::Duration::from_secs(1)).await;
+                    let backoff = std::time::Duration::from_secs(4u64.pow(attempt as u32).min(16));
+                    tokio::time::sleep(backoff).await;
                 }
             }
         }
