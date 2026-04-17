@@ -44,33 +44,43 @@ fn parse_save_count(value: &str, total: usize) -> usize {
     }
 }
 
-/// Assign exact pair counts per judge based on weights, then shuffle the assignments.
-/// Guarantees each judge gets exactly floor(total * weight) pairs, with remainders
-/// distributed one each to judges in order of largest fractional part.
-fn assign_pairs_to_judges(total_pairs: usize, normalized_weights: &[f64], rng: &mut impl rand::Rng) -> Vec<usize> {
+/// Assign pairs to judges for one round, balancing cumulative usage across rounds.
+///
+/// `cumulative_total` is the total pairs INCLUDING this round. Each judge's target
+/// is `cumulative_total * weight`, minus what they've already been assigned. This
+/// ensures even distribution over time rather than independent per-round allocation.
+/// Updates `cumulative_assigned` in place.
+fn assign_pairs_to_judges(
+    round_pairs: usize,
+    normalized_weights: &[f64],
+    cumulative_assigned: &mut [usize],
+    cumulative_total: usize,
+    rng: &mut impl rand::Rng,
+) -> Vec<usize> {
     let num_judges = normalized_weights.len();
 
-    // Compute exact fractional counts and floor counts
     let mut counts: Vec<usize> = Vec::with_capacity(num_judges);
     let mut remainders: Vec<(usize, f64)> = Vec::with_capacity(num_judges);
     let mut assigned = 0usize;
 
     for (i, &w) in normalized_weights.iter().enumerate() {
-        let exact = w * total_pairs as f64;
-        let floor = exact.floor() as usize;
+        let target_this_round = (w * cumulative_total as f64) - cumulative_assigned[i] as f64;
+        let floor = (target_this_round.floor() as usize).min(round_pairs.saturating_sub(assigned));
         counts.push(floor);
-        remainders.push((i, exact - floor as f64));
+        remainders.push((i, target_this_round - floor as f64));
         assigned += floor;
     }
 
-    // Distribute leftover pairs to judges with the largest fractional remainders
     remainders.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap());
-    for &(judge_idx, _) in remainders.iter().take(total_pairs - assigned) {
+    for &(judge_idx, _) in remainders.iter().take(round_pairs - assigned) {
         counts[judge_idx] += 1;
     }
 
-    // Build assignment array and shuffle
-    let mut assignments: Vec<usize> = Vec::with_capacity(total_pairs);
+    for (i, &count) in counts.iter().enumerate() {
+        cumulative_assigned[i] += count;
+    }
+
+    let mut assignments: Vec<usize> = Vec::with_capacity(round_pairs);
     for (judge_idx, &count) in counts.iter().enumerate() {
         assignments.extend(std::iter::repeat_n(judge_idx, count));
     }
@@ -239,6 +249,9 @@ pub async fn run(args: RankArgs) {
         });
     }
 
+    let mut cumulative_judge_pairs: Vec<usize> = vec![0; judges.len()];
+    let mut cumulative_total_pairs: usize = 0;
+
     let mut interim_warm_start: Option<nanojudge_core::WarmStartState> = None;
     for round in 0..rounds {
         if cancelled.load(Ordering::Relaxed) {
@@ -251,9 +264,15 @@ pub async fn run(args: RankArgs) {
             eprintln!("Round {}/{}: {} pairs", round + 1, rounds, pairs.len());
         }
 
-        // Assign exact counts per judge based on weights, then shuffle which pairs go where
         let mut rng = rand::rng();
-        let pair_assignments = assign_pairs_to_judges(pairs.len(), &normalized_weights, &mut rng);
+        cumulative_total_pairs += pairs.len();
+        let pair_assignments = assign_pairs_to_judges(
+            pairs.len(),
+            &normalized_weights,
+            &mut cumulative_judge_pairs,
+            cumulative_total_pairs,
+            &mut rng,
+        );
 
         let mut handles = Vec::with_capacity(pairs.len());
 
