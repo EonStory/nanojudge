@@ -148,8 +148,12 @@ pub struct RankArgs {
     pub cfg: ConfigArgs,
 
     /// The comparison criterion (e.g. "Which is more rewatchable?")
-    #[arg(long)]
-    pub criterion: String,
+    #[arg(long, required_unless_present = "criterion_file")]
+    pub criterion: Option<String>,
+
+    /// File containing one or more criteria separated by ---CRITERION---
+    #[arg(long, conflicts_with = "criterion")]
+    pub criterion_file: Option<PathBuf>,
 
     /// File with one item per line, or a directory of text files (each file = one item)
     #[arg(long)]

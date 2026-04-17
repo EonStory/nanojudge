@@ -44,6 +44,15 @@ fn parse_save_count(value: &str, total: usize) -> usize {
     }
 }
 
+/// Parse a criterion file into a list of criteria, splitting on ---CRITERION---.
+fn parse_criteria(content: &str) -> Vec<String> {
+    content
+        .split("---CRITERION---")
+        .map(|s| s.trim().to_string())
+        .filter(|s| !s.is_empty())
+        .collect()
+}
+
 /// Assign pairs to judges for one round, balancing cumulative usage across rounds.
 ///
 /// `cumulative_total` is the total pairs INCLUDING this round. Each judge's target
@@ -142,6 +151,18 @@ pub async fn run(args: RankArgs) {
     // Per-judge narrow_win values
     let judge_narrow_wins: Vec<f64> = judges.iter().map(|j| j.narrow_win).collect();
 
+    let criteria: Vec<String> = if let Some(ref path) = args.criterion_file {
+        let content = std::fs::read_to_string(path)
+            .unwrap_or_else(|e| bail(format!("Failed to read criterion file {}: {e}", path.display())));
+        let parts = parse_criteria(&content);
+        if parts.is_empty() {
+            bail(format!("No criteria found in {}", path.display()));
+        }
+        parts
+    } else {
+        vec![args.criterion.clone().unwrap()]
+    };
+
     let prompt_template = Arc::new(resolved.prompt_template.clone());
 
     let client = Client::new();
@@ -157,7 +178,14 @@ pub async fn run(args: RankArgs) {
             rounds,
             total_planned,
         );
-        eprintln!("Criterion: \"{}\"", args.criterion);
+        if criteria.len() == 1 {
+            eprintln!("Criterion: \"{}\"", criteria[0]);
+        } else {
+            eprintln!("Criteria ({} variants):", criteria.len());
+            for (i, c) in criteria.iter().enumerate() {
+                eprintln!("  {}: \"{}\"", i + 1, c);
+            }
+        }
 
         if judges.len() == 1 {
             eprintln!("Endpoint: {} | Model: {}", judges[0].endpoint, judges[0].model);
@@ -250,6 +278,7 @@ pub async fn run(args: RankArgs) {
     }
 
     let mut cumulative_judge_pairs: Vec<usize> = vec![0; judges.len()];
+    let mut cumulative_criterion_pairs: Vec<usize> = vec![0; criteria.len()];
     let mut cumulative_total_pairs: usize = 0;
 
     let mut interim_warm_start: Option<nanojudge_core::WarmStartState> = None;
@@ -274,6 +303,15 @@ pub async fn run(args: RankArgs) {
             &mut rng,
         );
 
+        let criterion_weights: Vec<f64> = vec![1.0 / criteria.len() as f64; criteria.len()];
+        let criterion_assignments = assign_pairs_to_judges(
+            pairs.len(),
+            &criterion_weights,
+            &mut cumulative_criterion_pairs,
+            cumulative_total_pairs,
+            &mut rng,
+        );
+
         let mut handles = Vec::with_capacity(pairs.len());
 
         for (pair_idx, (id_a, id_b)) in pairs.iter().enumerate() {
@@ -282,7 +320,7 @@ pub async fn run(args: RankArgs) {
             let client = client.clone();
             let llm_config = judge_llm_configs[judge_idx].clone();
             let texts = texts.clone();
-            let criterion = args.criterion.clone();
+            let criterion = criteria[criterion_assignments[pair_idx]].clone();
             let analysis_length = analysis_length.clone();
             let template = prompt_template.clone();
             let id_a = *id_a;
@@ -586,5 +624,86 @@ pub async fn run(args: RankArgs) {
             &judge_tokens,
             &judge_avg_wall_time,
         );
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_parse_criteria_single() {
+        let criteria = parse_criteria("Which fruit is healthier?");
+        assert_eq!(criteria, vec!["Which fruit is healthier?"]);
+    }
+
+    #[test]
+    fn test_parse_criteria_multiple() {
+        let input = "Which fruit is healthier?\n---CRITERION---\nWhich of these two fruits are healthiest?\n---CRITERION---\nRegarding health, which fruit should I opt for?";
+        let criteria = parse_criteria(input);
+        assert_eq!(criteria, vec![
+            "Which fruit is healthier?",
+            "Which of these two fruits are healthiest?",
+            "Regarding health, which fruit should I opt for?",
+        ]);
+    }
+
+    #[test]
+    fn test_parse_criteria_trims_whitespace() {
+        let input = "  first criterion  \n---CRITERION---\n\n  second criterion  \n";
+        let criteria = parse_criteria(input);
+        assert_eq!(criteria, vec!["first criterion", "second criterion"]);
+    }
+
+    #[test]
+    fn test_parse_criteria_skips_empty_sections() {
+        let input = "---CRITERION---\nonly this one\n---CRITERION---\n---CRITERION---";
+        let criteria = parse_criteria(input);
+        assert_eq!(criteria, vec!["only this one"]);
+    }
+
+    #[test]
+    fn test_parse_criteria_empty_input() {
+        let criteria = parse_criteria("");
+        assert!(criteria.is_empty());
+    }
+
+    #[test]
+    fn test_cumulative_balancing_equal_weights() {
+        let weights = vec![1.0 / 3.0; 3];
+        let mut cumulative = vec![0usize; 3];
+        let mut rng = rand::rng();
+
+        // Simulate 5 rounds of 10 pairs each
+        let mut total = 0;
+        for _ in 0..5 {
+            total += 10;
+            assign_pairs_to_judges(10, &weights, &mut cumulative, total, &mut rng);
+        }
+
+        // After 50 total pairs with equal weights, each should have ~16-17
+        assert_eq!(cumulative.iter().sum::<usize>(), 50);
+        for &count in &cumulative {
+            assert!(count >= 16 && count <= 17, "count {count} not in [16, 17]");
+        }
+    }
+
+    #[test]
+    fn test_cumulative_balancing_uneven_round_sizes() {
+        let weights = vec![0.5, 0.5];
+        let mut cumulative = vec![0usize; 2];
+        let mut rng = rand::rng();
+
+        // Odd-sized rounds: 3, 3, 3
+        let mut total = 0;
+        for _ in 0..3 {
+            total += 3;
+            assign_pairs_to_judges(3, &weights, &mut cumulative, total, &mut rng);
+        }
+
+        // 9 pairs split across 2 judges: should be 4 and 5
+        assert_eq!(cumulative.iter().sum::<usize>(), 9);
+        assert!(cumulative[0] >= 4 && cumulative[0] <= 5);
+        assert!(cumulative[1] >= 4 && cumulative[1] <= 5);
     }
 }
