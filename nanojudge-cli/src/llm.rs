@@ -111,7 +111,7 @@ fn jittered_temperature(base: f64, jitter_std: f64) -> f64 {
         return base;
     }
     let mut rng = rand::rng();
-    let u1: f64 = rng.random();
+    let u1: f64 = rng.random::<f64>().max(1e-10);
     let u2: f64 = rng.random();
     let z = (-2.0 * u1.ln()).sqrt() * (2.0 * std::f64::consts::PI * u2).cos();
     let multiplier = (1.0 + jitter_std * z).clamp(0.8, 1.2);
