@@ -189,7 +189,7 @@ pub async fn send_comparison_request(
             crate::bail(format!("{} returned no logprobs. If your endpoint does not support logprobs, disable logprobs in your config.", config.model));
         }
 
-        parse_response(&content, &logprobs, narrow_win)
+        parse_response(&logprobs, narrow_win)
     } else {
         parse_response_text(&content, narrow_win)
     };

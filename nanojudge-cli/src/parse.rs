@@ -133,7 +133,7 @@ fn extract_likert_probabilities(logprobs: &[LogprobContent], mapping: &[f64; 5])
 /// Parse a comparison response into a win probability.
 ///
 /// Logprobs only — no text fallback. Returns None if logprob extraction fails.
-pub fn parse_response(_text: &str, logprobs: &[LogprobContent], narrow_win: f64) -> ParseResult {
+pub fn parse_response(logprobs: &[LogprobContent], narrow_win: f64) -> ParseResult {
     let mapping = likert_mapping(narrow_win);
     let (_, expected_p1) = extract_likert_probabilities(logprobs, &mapping);
 
@@ -245,7 +245,6 @@ mod tests {
 
     #[test]
     fn test_parse_response_with_logprobs() {
-        let text = "Analysis text.\n\nVerdict:\nB: Option 1 narrowly wins";
         let logprobs = vec![
             LogprobContent {
                 token: "Verdict".to_string(),
@@ -271,7 +270,7 @@ mod tests {
             },
         ];
 
-        let result = parse_response(text, &logprobs, DEFAULT_NARROW_WIN);
+        let result = parse_response(&logprobs, DEFAULT_NARROW_WIN);
         assert!(result.item1_win_probability.is_some());
         let p = result.item1_win_probability.unwrap();
         assert!(p > 0.7);
@@ -279,28 +278,22 @@ mod tests {
 
     #[test]
     fn test_parse_response_no_logprobs_returns_none() {
-        // Without logprobs, parse_response returns None (no text fallback)
-        let text = "Some analysis.\n\nVerdict:\nD: Option 2 narrowly wins";
-        let result = parse_response(text, &[], DEFAULT_NARROW_WIN);
+        let result = parse_response(&[], DEFAULT_NARROW_WIN);
         assert!(result.item1_win_probability.is_none());
     }
 
     #[test]
     fn test_parse_response_unparseable() {
-        let text = "I don't know what to say.";
-        let result = parse_response(text, &[], DEFAULT_NARROW_WIN);
+        let result = parse_response(&[], DEFAULT_NARROW_WIN);
         assert!(result.item1_win_probability.is_none());
     }
 
     #[test]
     fn test_custom_narrow_win_no_logprobs_returns_none() {
-        // Without logprobs, parse_response returns None regardless of text or narrow_win value
-        let text = "Analysis.\n\nVerdict:\nB: Option 1 narrowly wins";
-        let result = parse_response(text, &[], 0.7);
+        let result = parse_response(&[], 0.7);
         assert!(result.item1_win_probability.is_none());
 
-        let text = "Analysis.\n\nVerdict:\nD: Option 2 narrowly wins";
-        let result = parse_response(text, &[], 0.7);
+        let result = parse_response(&[], 0.7);
         assert!(result.item1_win_probability.is_none());
     }
 
