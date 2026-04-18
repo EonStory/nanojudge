@@ -35,8 +35,13 @@ pub struct ConfigArgs {
     pub logprobs: bool,
 
     /// Number of comparison rounds
-    #[arg(long)]
+    #[arg(long, conflicts_with = "comparisons")]
     pub rounds: Option<usize>,
+
+    /// Target number of comparisons (alternative to --rounds).
+    /// Converted to rounds by dividing by comparisons-per-round, rounded down.
+    #[arg(long, conflicts_with = "rounds")]
+    pub comparisons: Option<usize>,
 
     /// Max concurrent LLM requests
     #[arg(long)]

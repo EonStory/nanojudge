@@ -37,6 +37,7 @@ fn merge_opt<T: PartialEq + std::fmt::Display>(
 /// All required values are concrete (no Options except genuinely optional ones).
 pub struct ResolvedConfig {
     pub rounds: Option<usize>,
+    pub comparisons: Option<usize>,
     pub strategy: Strategy,
     pub top_k: Option<usize>,
     pub retries: usize,
@@ -218,6 +219,11 @@ pub fn resolve_judges(
 /// Judge-specific settings (endpoint, model, temperature, etc.) are handled by resolve_judges().
 pub fn resolve_config(shared: &ConfigArgs, cfg: &config::NanojudgeConfig) -> ResolvedConfig {
     let rounds = merge_opt(shared.rounds, cfg.rounds, "rounds");
+    let comparisons = merge_opt(shared.comparisons, cfg.comparisons, "comparisons");
+
+    if rounds.is_some() && comparisons.is_some() {
+        bail("Specify --rounds or --comparisons, not both.");
+    }
 
     let strategy_str = merge_opt(shared.strategy.clone(), cfg.strategy.clone(), "strategy")
         .unwrap_or_else(|| "balanced".to_string());
@@ -289,6 +295,7 @@ pub fn resolve_config(shared: &ConfigArgs, cfg: &config::NanojudgeConfig) -> Res
 
     ResolvedConfig {
         rounds,
+        comparisons,
         strategy,
         top_k,
         retries,

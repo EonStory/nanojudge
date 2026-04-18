@@ -1,6 +1,6 @@
 use nanojudge_core::{
     ComparisonInput, EngineConfig, JudgeInfo, RankingEngine, ScoringOptions, Strategy,
-    calculate_total_expected_comparisons, run_scoring,
+    calculate_pairs_for_round, calculate_total_expected_comparisons, run_scoring,
 };
 use rand::seq::SliceRandom;
 use reqwest::Client;
@@ -103,10 +103,6 @@ pub async fn run(args: RankArgs) {
     let cfg = config::load_config(&config_path);
     let resolved = resolve_config(&args.cfg, &cfg);
 
-    let rounds = resolved.rounds.unwrap_or_else(|| {
-        bail(format!("No rounds specified. Pass --rounds or set it in {}", config_path.display()));
-    });
-
     // Resolve judges from [[judge]] blocks
     let judges = resolve_judges(&args.cfg, &cfg, &config_path);
     let logprobs_mode = judges[0].logprobs;
@@ -117,6 +113,37 @@ pub async fn run(args: RankArgs) {
 
     let (titles, texts) = load_items(&args);
     let item_ids: Vec<i64> = (0..texts.len() as i64).collect();
+
+    let rounds = if let Some(target) = resolved.comparisons {
+        let mut total = 0;
+        let mut r = 0;
+        loop {
+            let next = calculate_pairs_for_round(texts.len(), r + 1);
+            if total + next > target {
+                break;
+            }
+            r += 1;
+            total += next;
+        }
+        if r == 0 {
+            let min = calculate_pairs_for_round(texts.len(), 1);
+            bail(format!(
+                "--comparisons ({target}) is less than one round ({min} comparisons). Use at least {min}.",
+            ));
+        }
+        let actual = calculate_total_expected_comparisons(texts.len(), r);
+        if actual < target {
+            eprintln!(
+                "Running {} comparisons instead of {}, to align with round boundaries ({} per first round).",
+                actual, target, calculate_pairs_for_round(texts.len(), 1),
+            );
+        }
+        r
+    } else {
+        resolved.rounds.unwrap_or_else(|| {
+            bail(format!("No rounds or comparisons specified. Pass --rounds, --comparisons, or set it in {}", config_path.display()));
+        })
+    };
 
     // Build JudgeInfo for the core engine
     let judge_ids: Vec<u64> = judges.iter().map(|j| j.judge_id).collect();

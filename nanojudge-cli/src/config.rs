@@ -30,6 +30,7 @@ pub struct JudgeConfig {
 #[derive(Deserialize, Default)]
 pub struct NanojudgeConfig {
     pub rounds: Option<usize>,
+    pub comparisons: Option<usize>,
     pub concurrency: Option<usize>,
     pub prompt_template: Option<String>,
     pub logprobs: Option<bool>,
@@ -59,8 +60,12 @@ const DEFAULT_CONFIG_TEMPLATE: &str = "\
 # nanojudge configuration
 # All values here can be overridden by CLI flags unless noted otherwise.
 
-# Number of comparison rounds
+# Number of comparison rounds (mutually exclusive with comparisons)
 # rounds = 10
+
+# Target number of comparisons (alternative to rounds).
+# Converted to rounds by dividing by comparisons-per-round, rounded down.
+# comparisons = 500
 
 # Default max concurrent LLM requests per judge (can be overridden per-judge)
 # concurrency = 16
