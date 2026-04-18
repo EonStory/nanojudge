@@ -333,8 +333,7 @@ impl GaussianBT {
             self.normalize_decisiveness();
         }
 
-        // Step 5: Normalize log-strengths
-        // (done by caller after gibbs_iteration, same as before)
+        // Step 5: Normalize log-strengths (done by collect_samples after each iteration)
     }
 
     /// Run MCMC sampling loop and collect results. Shared by cold-start and warm-start paths.
