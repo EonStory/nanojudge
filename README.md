@@ -58,7 +58,7 @@ nanojudge rank \
 # Inline items
 nanojudge rank \
   --criterion "Which fruit is healthier?" \
-  --item "Apple" --item "Banana" --item "Mango" --item "Strawberry"
+  --item "Guava" --item "Blueberries" --item "Mango" --item "Kiwi"
 
 # Point at a directory — each text file becomes one item
 nanojudge rank \
@@ -72,18 +72,31 @@ cat papers.txt | nanojudge rank \
 
 CLI flags like `--rounds` override config file values.
 
-Output:
+Output with criterion "Which of these fruits is healthiest?":
 
 ```
- # | Item       |   Score | 95% CI Low | 95% CI High | Comparisons | ID
----|------------|---------|------------|-------------|-------------|----
- 1 | Mango      |  1.5823 |       1.20 |        1.97 |          18 |  2
- 2 | Strawberry |  1.1491 |       0.85 |        1.48 |          16 |  3
- 3 | Apple      |  0.7512 |       0.45 |        1.05 |          17 |  0
- 4 | Banana     |  0.4204 |       0.12 |        0.68 |          15 |  1
-
-4 items ranked across 10 rounds (30 comparisons)
-Position bias — estimated: 0.523 [0.481, 0.567] (corrected for in scores, 0.5 = no bias)
+ # | Item          |   Score | 95% CI Low | 95% CI High | Comparisons | ID
+---|---------------|---------|------------|-------------|-------------|----
+ 1 | guava         |  6.0797 |       5.54 |        6.73 |          13 | 11
+ 2 | raspberries   |  5.3125 |       4.73 |        5.91 |          13 | 14
+ 3 | blueberries   |  5.2954 |       4.72 |        5.85 |          11 |  1
+ 4 | kiwi          |  3.5773 |       3.02 |        4.15 |          13 |  4
+ 5 | pomegranate   |  2.9892 |       2.41 |        3.51 |          13 |  5
+ 6 | passion fruit |  2.4649 |       1.90 |        2.99 |          13 |  8
+ 7 | mango         |  1.2804 |       0.67 |        1.90 |          12 |  0
+ 8 | persimmon     |  0.7152 |       0.17 |        1.21 |          14 | 15
+ 9 | pineapple     | -0.0699 |      -0.67 |        0.50 |          13 | 18
+10 | figs          | -0.8494 |      -1.42 |       -0.29 |          13 |  7
+11 | dragon fruit  | -1.2148 |      -1.74 |       -0.65 |          14 |  9
+12 | tangerines    | -1.4400 |      -1.95 |       -0.93 |          13 | 17
+13 | bananas       | -1.7869 |      -2.41 |       -1.21 |          12 | 13
+14 | cherimoya     | -1.9670 |      -2.45 |       -1.43 |          14 | 19
+15 | watermelon    | -2.0843 |      -2.63 |       -1.54 |          13 |  3
+16 | durian        | -2.3493 |      -2.91 |       -1.72 |          14 |  2
+17 | peaches       | -3.2823 |      -3.90 |       -2.65 |          11 | 10
+18 | lychees       | -3.9726 |      -4.51 |       -3.43 |          14 |  6
+19 | coconut       | -4.2377 |      -4.77 |       -3.73 |          14 | 16
+20 | starfruit     | -4.4602 |      -5.00 |       -3.85 |          13 | 12
 ```
 
 Add `--json` for machine-readable output. Add `-v` for progress during execution.

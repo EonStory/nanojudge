@@ -137,7 +137,7 @@ impl RankingEngine {
         bt.calculate_scores(30);
 
         for i in 0..num_items {
-            self.current_ratings[i] = bt.get_score(i);
+            self.current_ratings[i] = bt.get_score(i).ln();
         }
     }
 

@@ -362,7 +362,7 @@ impl GaussianBT {
             self.normalize_log_strengths();
 
             for idx in 0..n {
-                samples_per_item[idx].push(self.log_strengths[idx].exp());
+                samples_per_item[idx].push(self.log_strengths[idx]);
             }
 
             for j in 0..k {
@@ -441,9 +441,9 @@ impl GaussianBT {
         self.collect_samples(mcmc_iterations, top_k, &mut rng)
     }
 
-    /// Get current item state for warm-starting (exp of log-strengths for real items).
+    /// Get current item state for warm-starting (log-strengths for real items).
     pub fn get_current_state(&self) -> Vec<f64> {
-        self.log_strengths[..self.num_items].iter().map(|&v| v.exp()).collect()
+        self.log_strengths[..self.num_items].to_vec()
     }
 
     /// Get current per-judge biases (keyed by judge_id from the info).
@@ -479,7 +479,7 @@ impl GaussianBT {
 
         // Restore item strengths
         for i in 0..n {
-            self.log_strengths[i] = previous_strengths[i].ln();
+            self.log_strengths[i] = previous_strengths[i];
         }
         self.log_strengths[self.ghost_idx] = 0.0;
 

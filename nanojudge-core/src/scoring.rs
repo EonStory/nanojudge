@@ -383,7 +383,7 @@ mod tests {
     fn log_rmse(rankings: &[crate::types::RankedItem], true_by_id: &std::collections::HashMap<i64, f64>) -> f64 {
         let n = rankings.len();
         let sum_sq: f64 = rankings.iter().map(|r| {
-            let diff = true_by_id[&r.item].ln() - r.score.ln();
+            let diff = true_by_id[&r.item].ln() - r.score;
             diff * diff
         }).sum();
         (sum_sq / n as f64).sqrt()
@@ -422,7 +422,7 @@ mod tests {
             let bt_input: Vec<(usize, usize, f64)> = indexed.iter().map(|&(i1, i2, p, _)| (i1, i2, p)).collect();
             let mut bt = crate::bradley_terry::BradleyTerry::new(n, &bt_input, 0.01);
             bt.calculate_scores(30);
-            let bt_scores: Vec<f64> = (0..n).map(|i| bt.get_score(i)).collect();
+            let bt_scores: Vec<f64> = (0..n).map(|i| bt.get_score(i).ln()).collect();
 
             let mut opts_warm50 = default_scoring_options();
             opts_warm50.iterations = iterations;

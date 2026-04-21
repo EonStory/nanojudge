@@ -18,7 +18,7 @@ pub enum Strategy {
 
 /// Calculate information gain for a matchup between two items.
 pub fn calculate_info_gain(rating_a: f64, rating_b: f64, sharpness: f64) -> f64 {
-    let p = rating_a / (rating_a + rating_b);
+    let p = 1.0 / (1.0 + (rating_b - rating_a).exp());
     let info_gain = p * (1.0 - p);
     info_gain.powf(sharpness)
 }
