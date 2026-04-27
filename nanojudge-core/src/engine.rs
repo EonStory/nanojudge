@@ -30,6 +30,10 @@ pub struct RankingEngine {
     pub completed_comparisons: Vec<ComparisonInput>,
     /// Games played per item (indexed internally 0..num_items).
     pub games_played: Vec<usize>,
+    /// Number of times each item was placed in position 1 of a comparison
+    /// prompt (indexed internally 0..num_items). Used by the pairing layer
+    /// to balance position assignments across rounds.
+    pub first_position_count: Vec<usize>,
 
     /// Current BT ratings (indexed internally 0..num_items).
     current_ratings: Vec<f64>,
@@ -55,6 +59,7 @@ impl RankingEngine {
             id_map,
             completed_comparisons: Vec::new(),
             games_played: vec![0; num_items],
+            first_position_count: vec![0; num_items],
             current_ratings: vec![INITIAL_BRADLEY_TERRY_RATING; num_items],
             current_round_number: 0,
             mcmc_sample_means: None,
@@ -88,6 +93,8 @@ impl RankingEngine {
                 self.current_round_number,
                 &self.current_ratings,
                 self.config.matchmaking_sharpness,
+                &self.first_position_count,
+                &self.games_played,
             ),
             Strategy::TopHeavy => {
                 let top_k_probs = self.mcmc_top_k_probs.as_ref()
@@ -101,6 +108,8 @@ impl RankingEngine {
                     top_k_probs,
                     sample_means,
                     self.config.matchmaking_sharpness,
+                    &self.first_position_count,
+                    &self.games_played,
                 )
             }
         };
@@ -119,6 +128,7 @@ impl RankingEngine {
             let idx2 = self.id_map.to_idx(result.item2);
             self.games_played[idx1] += 1;
             self.games_played[idx2] += 1;
+            self.first_position_count[idx1] += 1;
         }
     }
 
@@ -265,6 +275,44 @@ mod tests {
             number_of_rounds: None,
         };
         let _ = RankingEngine::new(&[1], config);
+    }
+
+    #[test]
+    fn test_first_position_balancing_converges() {
+        // Drive the engine through many rounds and verify each item's
+        // first-position ratio stays close to 0.5. A pure coin flip would also
+        // pass with these sample sizes; this test guards against regressions
+        // that would degrade balancing (e.g. accidentally stop tracking).
+        let item_ids: Vec<i64> = (1..=20).collect();
+        let config = EngineConfig {
+            strategy: Strategy::Balanced,
+            matchmaking_sharpness: 1.0,
+            min_games_before_strategy: 3,
+            number_of_rounds: Some(30),
+        };
+
+        let mut engine = RankingEngine::new(&item_ids, config);
+
+        for round in 0..30 {
+            let pairs = engine.generate_pairs_for_round(round);
+            let results: Vec<ComparisonInput> = pairs.iter()
+                .map(|(a, b)| make_input(*a, *b, 0.5))
+                .collect();
+            engine.record_results(&results);
+        }
+
+        let total_comparisons: usize = engine.games_played.iter().sum::<usize>() / 2;
+        assert!(total_comparisons >= 800,
+            "expected at least 800 comparisons, got {}", total_comparisons);
+
+        for i in 0..engine.num_items() {
+            let games = engine.games_played[i];
+            assert!(games > 0, "item {} played zero games", i);
+            let ratio = engine.first_position_count[i] as f64 / games as f64;
+            assert!((ratio - 0.5).abs() < 0.10,
+                "item {} drifted: first {} / {} = {:.3}",
+                i, engine.first_position_count[i], games, ratio);
+        }
     }
 
     #[test]

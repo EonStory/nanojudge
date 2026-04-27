@@ -23,6 +23,22 @@ pub fn calculate_info_gain(rating_a: f64, rating_b: f64, sharpness: f64) -> f64 
     info_gain.powf(sharpness)
 }
 
+/// Probability that item A goes in position 1 against item B.
+///
+/// Uses Laplace-smoothed first-position ratios so that an item which has
+/// historically gone first more often gets a lower probability of going
+/// first next time. With no history (zero counts) this returns 0.5,
+/// degrading gracefully to a fair coin flip. The +1 / +2 smoothing damps
+/// extreme ratios from small samples.
+fn position_probability(
+    first_count_a: usize, games_a: usize,
+    first_count_b: usize, games_b: usize,
+) -> f64 {
+    let ratio_a = (first_count_a as f64 + 1.0) / (games_a as f64 + 2.0);
+    let ratio_b = (first_count_b as f64 + 1.0) / (games_b as f64 + 2.0);
+    ratio_b / (ratio_a + ratio_b)
+}
+
 /// Determine the effective strategy to use for this round.
 ///
 /// Three stages:
@@ -73,11 +89,15 @@ pub fn generate_balanced_pairings(
     current_ratings: &[f64],
     sharpness: f64,
 ) -> Vec<Pair> {
+    let n = item_ids.len();
+    let zeros = vec![0usize; n];
     let index_pairs = generate_balanced_pairings_indexed(
-        item_ids.len(),
+        n,
         round_number,
         current_ratings,
         sharpness,
+        &zeros,
+        &zeros,
     );
     index_pairs.into_iter().map(|(a, b)| (item_ids[a], item_ids[b])).collect()
 }
@@ -93,12 +113,16 @@ pub fn generate_top_heavy_pairings(
     sample_means: &[f64],
     sharpness: f64,
 ) -> Vec<Pair> {
+    let n = item_ids.len();
+    let zeros = vec![0usize; n];
     let index_pairs = generate_top_heavy_pairings_indexed(
-        item_ids.len(),
+        n,
         round_number,
         top_k_probs,
         sample_means,
         sharpness,
+        &zeros,
+        &zeros,
     );
     index_pairs.into_iter().map(|(a, b)| (item_ids[a], item_ids[b])).collect()
 }
@@ -112,6 +136,8 @@ pub(crate) fn generate_balanced_pairings_indexed(
     round_number: usize,
     current_ratings: &[f64],
     sharpness: f64,
+    first_position_counts: &[usize],
+    games_played: &[usize],
 ) -> Vec<IndexedPair> {
     let mut rng = rand::rng();
     let pairs_target = calculate_pairs_for_round(num_items, round_number + 1);
@@ -125,12 +151,26 @@ pub(crate) fn generate_balanced_pairings_indexed(
     let full_iterations = pairs_target / items_per_iteration;
     let remaining_pairs = pairs_target % items_per_iteration;
 
+    // Local mutable copies of caller-provided counters. Updated optimistically
+    // as positions are assigned within this call so later pairs balance against
+    // earlier ones. Discarded at function return — caller state is never mutated.
+    let mut local_first_counts: Vec<usize> = first_position_counts.to_vec();
+    let mut local_games: Vec<usize> = games_played.to_vec();
+
     for _ in 0..full_iterations {
-        generate_balanced_iteration(num_items, current_ratings, sharpness, items_per_iteration, &mut pairings, &mut rng);
+        generate_balanced_iteration(
+            num_items, current_ratings, sharpness, items_per_iteration,
+            &mut pairings, &mut rng,
+            &mut local_first_counts, &mut local_games,
+        );
     }
 
     if remaining_pairs > 0 {
-        generate_balanced_iteration(num_items, current_ratings, sharpness, remaining_pairs, &mut pairings, &mut rng);
+        generate_balanced_iteration(
+            num_items, current_ratings, sharpness, remaining_pairs,
+            &mut pairings, &mut rng,
+            &mut local_first_counts, &mut local_games,
+        );
     }
 
     pairings
@@ -143,6 +183,8 @@ fn generate_balanced_iteration(
     max_pairs: usize,
     pairings: &mut Vec<IndexedPair>,
     rng: &mut impl Rng,
+    first_counts: &mut [usize],
+    total_games: &mut [usize],
 ) {
     // Sort items by rating ascending so we can pick opponents from a narrow
     // rating-window around each item1. sorted_pool is immutable for the rest
@@ -208,11 +250,19 @@ fn generate_balanced_iteration(
         alive[pos2] = false;
         let (item2, _) = sorted_pool[pos2];
 
-        if rng.random::<f64>() < 0.5 {
+        let p = position_probability(
+            first_counts[item1], total_games[item1],
+            first_counts[item2], total_games[item2],
+        );
+        if rng.random::<f64>() < p {
             pairings.push((item1, item2));
+            first_counts[item1] += 1;
         } else {
             pairings.push((item2, item1));
+            first_counts[item2] += 1;
         }
+        total_games[item1] += 1;
+        total_games[item2] += 1;
     }
 }
 
@@ -240,6 +290,8 @@ pub(crate) fn generate_top_heavy_pairings_indexed(
     top_k_probs: &[f64],
     sample_means: &[f64],
     sharpness: f64,
+    first_position_counts: &[usize],
+    games_played: &[usize],
 ) -> Vec<IndexedPair> {
     if num_items < 2 {
         return Vec::new();
@@ -262,6 +314,12 @@ pub(crate) fn generate_top_heavy_pairings_indexed(
     for (pos, &(orig_idx, _)) in sorted_by_mean.iter().enumerate() {
         sorted_pos[orig_idx] = pos;
     }
+
+    // Local mutable copies of caller-provided counters. Updated optimistically
+    // as positions are assigned within this call so later pairs balance against
+    // earlier ones. Discarded at function return — caller state is never mutated.
+    let mut local_first_counts: Vec<usize> = first_position_counts.to_vec();
+    let mut local_games: Vec<usize> = games_played.to_vec();
 
     let mut pairs: Vec<IndexedPair> = Vec::with_capacity(pairs_target);
 
@@ -303,11 +361,19 @@ pub(crate) fn generate_top_heavy_pairings_indexed(
 
         let item2 = opponents[item2_local_idx];
 
-        if rng.random::<f64>() < 0.5 {
+        let p = position_probability(
+            local_first_counts[item1], local_games[item1],
+            local_first_counts[item2], local_games[item2],
+        );
+        if rng.random::<f64>() < p {
             pairs.push((item1, item2));
+            local_first_counts[item1] += 1;
         } else {
             pairs.push((item2, item1));
+            local_first_counts[item2] += 1;
         }
+        local_games[item1] += 1;
+        local_games[item2] += 1;
     }
 
     pairs
@@ -388,6 +454,66 @@ mod tests {
             assert!(*a >= 100 && *a <= 109, "ID {} not in range", a);
             assert!(*b >= 100 && *b <= 109, "ID {} not in range", b);
         }
+    }
+
+    #[test]
+    fn test_position_probability_no_history() {
+        // With zero counts on both sides, smoothing gives both items a ratio of
+        // 1/2, so the formula must collapse to a fair coin flip.
+        let p = position_probability(0, 0, 0, 0);
+        assert!((p - 0.5).abs() < 1e-12);
+    }
+
+    #[test]
+    fn test_position_probability_equal_ratios() {
+        // Equal ratios at any sample size must give 0.5.
+        assert!((position_probability(5, 10, 5, 10) - 0.5).abs() < 1e-12);
+        assert!((position_probability(50, 100, 500, 1000) - 0.5).abs() < 1e-12);
+    }
+
+    #[test]
+    fn test_position_probability_skewed_pulls_toward_balance() {
+        // A has gone first 70/100 times, B 30/100. A should be down-weighted.
+        let p = position_probability(70, 100, 30, 100);
+        assert!(p < 0.5, "A should be less likely to go first; got {}", p);
+        // ratio_A = 71/102, ratio_B = 31/102 → P(A) = 31 / (71 + 31).
+        let expected = 31.0 / 102.0;
+        let denom = 71.0 / 102.0 + 31.0 / 102.0;
+        assert!((p - expected / denom).abs() < 1e-12);
+    }
+
+    #[test]
+    fn test_position_probability_smoothing_damps_small_samples() {
+        // A has played 1 game and went first. Without smoothing this would be
+        // ratio 1.0; with Laplace smoothing it is 2/3, far from extreme.
+        let p = position_probability(1, 1, 0, 0);
+        // ratio_A = 2/3, ratio_B = 1/2 → P(A) = (1/2) / (2/3 + 1/2) = 3/7.
+        assert!((p - 3.0 / 7.0).abs() < 1e-12);
+    }
+
+    #[test]
+    fn test_position_probability_exact_at_various_scales() {
+        // The formula is fully deterministic. Each expected value below is
+        // computed by hand from the smoothed-ratio definition.
+
+        // 7/10 vs 3/10:        ratios 8/12, 4/12.   P = 4/12 / 12/12 = 1/3.
+        let p_tiny = position_probability(7, 10, 3, 10);
+        assert!((p_tiny - 1.0 / 3.0).abs() < 1e-12);
+
+        // 70/100 vs 30/100:    ratios 71/102, 31/102.   P = 31/102.
+        let p_mid = position_probability(70, 100, 30, 100);
+        assert!((p_mid - 31.0 / 102.0).abs() < 1e-12);
+
+        // 700/1000 vs 300/1000:    ratios 701/1002, 301/1002.   P = 301/1002.
+        let p_large = position_probability(700, 1000, 300, 1000);
+        assert!((p_large - 301.0 / 1002.0).abs() < 1e-12);
+
+        // As N grows the smoothing's effect shrinks, so the probability moves
+        // toward the un-smoothed ratio (3/10 = 0.3). Each larger sample is
+        // strictly closer to that limit than the smaller one before it.
+        let limit = 0.3;
+        assert!((p_large - limit).abs() < (p_mid - limit).abs());
+        assert!((p_mid - limit).abs() < (p_tiny - limit).abs());
     }
 
     #[test]
